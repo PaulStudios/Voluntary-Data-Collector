@@ -68,7 +68,7 @@ fun RegisterScreen(navController: NavController) {
                     auth.createUserWithEmailAndPassword(email.value, password.value)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                onRegisterSuccess()
+                                navController.navigate(Screen.Info.route)
                             } else {
                                 Log.w("Register", "createUserWithEmail:failure", task.exception)
                             }

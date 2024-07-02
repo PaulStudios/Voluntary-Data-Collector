@@ -67,7 +67,7 @@ fun LoginScreen(navController: NavController) {
                     auth.signInWithEmailAndPassword(email.value, password.value)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                onLoginSuccess()
+                                navController.navigate(Screen.Info.route)
                             } else {
                                 Log.w("Login", "signInWithEmail:failure", task.exception)
                             }

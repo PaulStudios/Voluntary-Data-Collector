@@ -15,6 +15,9 @@ fun MyApp(navController: NavHostController = rememberNavController()) {
         composable(Screen.Register.route) {
             RegisterScreen(navController = navController)
         }
+        composable(Screen.Info.route) {
+            InfoScreen()
+        }
         // Add more screens as composable destinations here
     }
 }
