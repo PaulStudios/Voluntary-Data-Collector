@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "923951446597",
+    "project_id": "voluntary-data-collector",
+    "storage_bucket": "voluntary-data-collector.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:923951446597:android:5b0362fc14810f087c812c",
+        "android_client_info": {
+          "package_name": "org.paulstudios.datasurvey"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDcEotDFGdHvSlC8Lqna6U9jEHV9PwXUZw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
