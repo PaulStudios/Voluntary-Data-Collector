@@ -90,5 +90,15 @@ dependencies {
     androidTestImplementation(libs.androidx.navigation.testing)
 
     // Jetpack Compose Integration
-    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.navigation.compose.v240alpha10)
+
+    implementation(libs.androidx.activity.compose.v140)
+    implementation(libs.androidx.lifecycle.runtime.ktx.v240)
+    implementation(libs.retrofit)
+    implementation(libs.converter.gson)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.play.services.location)
+    implementation(libs.androidx.material3.v100alpha15)
+    implementation(libs.kotlinx.coroutines.android.v152)
+    implementation(libs.accompanist.navigation.animation)
 }
