@@ -8,22 +8,38 @@ from typing import List
 from database import get_db, get_project_db
 from commands import create_project_db
 
-app = FastAPI()
+app = FastAPI(
+    title="Voluntary Data Tracker API",
+    description="API for managing projects and user data for the Voluntary Data Tracker application.",
+    version="1.0.0",
+    contact={
+        "name": "Support Team",
+        "url": "https://example.com/contact",
+        "email": "support@example.com",
+    },
+)
+
 
 class UserDataEntry(BaseModel):
     longitude: float
     latitude: float
     timestamp: str
 
+
 class UserData(BaseModel):
     entries: List
+
 
 class Project(BaseModel):
     project_name: str
     project_description: str
 
-@app.get("/", response_class=HTMLResponse)
+
+@app.get("/", response_class=HTMLResponse, tags=["Index"])
 async def index(request: Request):
+    """
+    Index page displaying all projects and a form to create a new project.
+    """
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT project_id, project_name, project_description FROM projects")
@@ -103,8 +119,16 @@ async def index(request: Request):
     """
     return HTMLResponse(content=html_content)
 
-@app.post("/project/")
-async def create_project(project_name: str = Form(...), project_description: str = Form(...), db: sqlite3.Connection = Depends(get_db)):
+
+@app.post("/project/", tags=["Projects"], summary="Create a new project")
+async def create_project(
+        project_name: str = Form(..., description="Name of the project"),
+        project_description: str = Form(..., description="Description of the project"),
+        db: sqlite3.Connection = Depends(get_db)
+):
+    """
+    Create a new project with the specified name and description.
+    """
     project_id = f"{random.randint(100000, 999999):06d}"
     cursor = db.cursor()
     cursor.execute("INSERT INTO projects (project_id, project_name, project_description) VALUES (?, ?, ?)",
@@ -115,8 +139,12 @@ async def create_project(project_name: str = Form(...), project_description: str
     create_project_db(project_id)
     return {"message": "Project created successfully", "project_id": project_id}
 
-@app.get("/project/{project_id}")
+
+@app.get("/project/{project_id}", tags=["Projects"], summary="Get project details")
 async def get_project(project_id: str, db: sqlite3.Connection = Depends(get_db)):
+    """
+    Retrieve the details of a specific project by its ID.
+    """
     cursor = db.cursor()
     cursor.execute("SELECT * FROM projects WHERE project_id = ?", (project_id,))
     project = cursor.fetchone()
@@ -129,8 +157,12 @@ async def get_project(project_id: str, db: sqlite3.Connection = Depends(get_db))
         "project_description": project[2]
     }
 
-@app.post("/project/{project_id}/user_data")
+
+@app.post("/project/{project_id}/user_data", tags=["User Data"], summary="Upload user data to a project")
 async def upload_user_data(project_id: str, user_id: str, user_data: UserData):
+    """
+    Upload user data to a specific project. Creates a table for the user if it doesn't exist.
+    """
     conn = get_project_db(project_id)
     cursor = conn.cursor()
     # Create a table for the user if it doesn't exist

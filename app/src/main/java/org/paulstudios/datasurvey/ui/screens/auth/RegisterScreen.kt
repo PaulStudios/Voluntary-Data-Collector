@@ -19,6 +19,7 @@ import com.google.firebase.auth.FirebaseAuth
 import org.paulstudios.datasurvey.R
 import org.paulstudios.datasurvey.models.Screen
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController) {
     val email = remember { mutableStateOf("") }

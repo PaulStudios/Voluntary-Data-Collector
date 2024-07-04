@@ -51,54 +51,37 @@ android {
 }
 
 dependencies {
+    // Compose BOM
+    implementation(platform("androidx.compose:compose-bom:2023.01.00"))
 
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.activity.compose)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.ui)
-    implementation(libs.androidx.ui.graphics)
-    implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
-    implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    implementation(libs.androidx.activity)
-    implementation(libs.androidx.constraintlayout)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth)
-    implementation(libs.google.firebase.analytics)
+    // Core Compose dependencies
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.compose.material3:material3")
+    debugImplementation("androidx.compose.ui:ui-tooling")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
-    // Java language implementation
-    implementation(libs.androidx.navigation.fragment)
-    implementation(libs.androidx.navigation.ui)
+    // Accompanist navigation animation
+    implementation("com.google.accompanist:accompanist-navigation-animation:0.31.1-alpha")
 
-    // Kotlin
-    implementation(libs.androidx.navigation.fragment.ktx)
-    implementation(libs.androidx.navigation.ui.ktx)
-
-    // Feature module Support
-    implementation(libs.androidx.navigation.dynamic.features.fragment)
-
-    // Testing Navigation
-    androidTestImplementation(libs.androidx.navigation.testing)
-
-    // Jetpack Compose Integration
-    implementation(libs.androidx.navigation.compose.v240alpha10)
-
-    implementation(libs.androidx.activity.compose.v140)
-    implementation(libs.androidx.lifecycle.runtime.ktx.v240)
-    implementation(libs.retrofit)
-    implementation(libs.converter.gson)
-    implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.play.services.location)
-    implementation(libs.androidx.material3.v100alpha15)
-    implementation(libs.kotlinx.coroutines.android.v152)
-    implementation(libs.accompanist.navigation.animation)
+    // Other dependencies
+    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.1")
+    implementation("androidx.activity:activity-compose:1.7.2")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.9.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    implementation("com.google.firebase:firebase-auth-ktx:21.1.0")
+    implementation("com.google.firebase:firebase-analytics-ktx:21.2.0")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.5.3")
+    implementation("androidx.navigation:navigation-ui-ktx:2.5.3")
+    implementation("androidx.navigation:navigation-dynamic-features-fragment:2.5.3")
+    androidTestImplementation("androidx.navigation:navigation-testing:2.5.3")
+    implementation("androidx.navigation:navigation-compose:2.5.3")
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("androidx.work:work-runtime-ktx:2.8.1")
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.2")
 }
