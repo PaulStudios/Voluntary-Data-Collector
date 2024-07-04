@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import org.paulstudios.datasurvey.R
-import org.paulstudios.datasurvey.models.Screen
+import org.paulstudios.datasurvey.data.models.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +70,7 @@ fun RegisterScreen(navController: NavController) {
                     auth.createUserWithEmailAndPassword(email.value, password.value)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                navController.navigate(Screen.Info.route)
+                                navController.navigate(Screen.ProjectIdForm.route)
                             } else {
                                 Log.w("Register", "createUserWithEmail:failure", task.exception)
                             }

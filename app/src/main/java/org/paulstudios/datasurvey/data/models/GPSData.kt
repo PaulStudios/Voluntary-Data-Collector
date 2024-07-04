@@ -1,4 +1,4 @@
-package org.paulstudios.datasurvey.models
+package org.paulstudios.datasurvey.data.models
 
 data class GPSData(
     val latitude: Double,

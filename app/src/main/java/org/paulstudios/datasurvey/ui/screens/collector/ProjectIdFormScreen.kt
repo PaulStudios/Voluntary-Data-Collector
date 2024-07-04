@@ -17,7 +17,7 @@ import java.io.IOException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProjectIdScreen(navController: NavController) {
+fun ProjectIdFormScreen(navController: NavController) {
     var projectId by remember { mutableStateOf(TextFieldValue("")) }
     var errorMessage by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }

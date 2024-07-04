@@ -17,7 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import org.paulstudios.datasurvey.R
-import org.paulstudios.datasurvey.models.Screen
+import org.paulstudios.datasurvey.data.models.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
