@@ -1,183 +1,115 @@
-from fastapi import FastAPI, HTTPException, Form, Depends, Request
+import logging
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import HTMLResponse
-import random
-import sqlite3
-import uuid
-from pydantic import BaseModel
-from typing import List
-from database import get_db, get_project_db
-from commands import create_project_db
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from database import database, Base, engine, get_db
+from models import User
+from auth import get_password_hash
+from routers import user, admin, project
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Voluntary Data Tracker API",
     description="API for managing projects and user data for the Voluntary Data Tracker application.",
-    version="1.0.0",
+    version="0.6.3  ",
     contact={
-        "name": "Support Team",
-        "url": "https://example.com/contact",
-        "email": "support@example.com",
+        "name": "PaulStudios [HilFing]",
+        "url": "https://github.com/PaulStudios",
+        "email": "paulstudiosofficial@gmail.com",
     },
 )
 
+# Create the database tables
+Base.metadata.create_all(bind=engine)
 
-class UserDataEntry(BaseModel):
-    longitude: float
-    latitude: float
-    timestamp: str
+# Include routers
+app.include_router(user.router)
+app.include_router(admin.router)
+app.include_router(project.router)
 
-
-class UserData(BaseModel):
-    entries: List
-
-
-class Project(BaseModel):
-    project_name: str
-    project_description: str
+# Mount static files and templates
+app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
 
-@app.get("/", response_class=HTMLResponse, tags=["Index"])
-async def index(request: Request):
-    """
-    Index page displaying all projects and a form to create a new project.
-    """
-    conn = get_db()
-    cursor = conn.cursor()
-    cursor.execute("SELECT project_id, project_name, project_description FROM projects")
-    projects = cursor.fetchall()
-    conn.close()
-    project_list = "".join(
-        f"<li><strong>{project[1]}</strong>: {project[2]} (ID: {project[0]})</li>" for project in projects
-    )
-    html_content = f"""
-    <html>
-        <head>
-            <title>Project Index</title>
-            <style>
-                body {{
-                    font-family: Arial, sans-serif;
-                    margin: 0;
-                    padding: 20px;
-                    background-color: #f4f4f9;
-                }}
-                h1 {{
-                    color: #333;
-                }}
-                ul {{
-                    list-style-type: none;
-                    padding: 0;
-                }}
-                li {{
-                    background: #fff;
-                    margin: 10px 0;
-                    padding: 10px;
-                    border-radius: 5px;
-                    box-shadow: 0 0 5px rgba(0,0,0,0.1);
-                }}
-                form {{
-                    background: #fff;
-                    padding: 20px;
-                    border-radius: 5px;
-                    box-shadow: 0 0 5px rgba(0,0,0,0.1);
-                }}
-                label {{
-                    display: block;
-                    margin: 10px 0 5px;
-                }}
-                input[type="text"], input[type="submit"] {{
-                    width: 100%;
-                    padding: 10px;
-                    margin: 5px 0 10px;
-                    border: 1px solid #ccc;
-                    border-radius: 5px;
-                }}
-                input[type="submit"] {{
-                    background-color: #28a745;
-                    color: white;
-                    border: none;
-                    cursor: pointer;
-                }}
-                input[type="submit"]:hover {{
-                    background-color: #218838;
-                }}
-            </style>
-        </head>
-        <body>
-            <h1>Project Index</h1>
-            <ul>
-                {project_list}
-            </ul>
-            <h2>Create a new project</h2>
-            <form action="/project/" method="post">
-                <label for="project_name">Project Name:</label>
-                <input type="text" id="project_name" name="project_name" required minlength="3"><br>
-                <label for="project_description">Project Description:</label>
-                <input type="text" id="project_description" name="project_description" required minlength="10"><br>
-                <input type="submit" value="Create Project">
-            </form>
-        </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content)
+@app.on_event("startup")
+async def startup():
+    await database.connect()
+    create_initial_admin_users()
 
 
-@app.post("/project/", tags=["Projects"], summary="Create a new project")
-async def create_project(
-        project_name: str = Form(..., description="Name of the project"),
-        project_description: str = Form(..., description="Description of the project"),
-        db: sqlite3.Connection = Depends(get_db)
-):
-    """
-    Create a new project with the specified name and description.
-    """
-    project_id = f"{random.randint(100000, 999999):06d}"
-    cursor = db.cursor()
-    cursor.execute("INSERT INTO projects (project_id, project_name, project_description) VALUES (?, ?, ?)",
-                   (project_id, project_name, project_description))
-    db.commit()
-    db.close()
-    # Create a separate database for the project
-    create_project_db(project_id)
-    return {"message": "Project created successfully", "project_id": project_id}
+@app.on_event("shutdown")
+async def shutdown():
+    await database.disconnect()
 
 
-@app.get("/project/{project_id}", tags=["Projects"], summary="Get project details")
-async def get_project(project_id: str, db: sqlite3.Connection = Depends(get_db)):
-    """
-    Retrieve the details of a specific project by its ID.
-    """
-    cursor = db.cursor()
-    cursor.execute("SELECT * FROM projects WHERE project_id = ?", (project_id,))
-    project = cursor.fetchone()
-    db.close()
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return {
-        "project_id": project[0],
-        "project_name": project[1],
-        "project_description": project[2]
-    }
+def create_initial_admin_users():
+    """Create initial admin users."""
+    db = next(get_db())
+    if not db.query(User).filter(User.username == "app_admin").first():
+        app_admin = User(
+            username="app_admin",
+            email="app_admin@example.com",
+            full_name="App Admin",
+            hashed_password=get_password_hash("app_admin_password"),
+            is_admin=True,
+        )
+        db.add(app_admin)
+        db.commit()
+        db.refresh(app_admin)
+        logger.info("Created initial admin user: app_admin")
+
+    if not db.query(User).filter(User.username == "personal_admin").first():
+        personal_admin = User(
+            username="personal_admin",
+            email="personal_admin@example.com",
+            full_name="Personal Admin",
+            hashed_password=get_password_hash("personal_admin_password"),
+            is_admin=True,
+        )
+        db.add(personal_admin)
+        db.commit()
+        db.refresh(personal_admin)
+        logger.info("Created initial admin user: personal_admin")
 
 
-@app.post("/project/{project_id}/user_data", tags=["User Data"], summary="Upload user data to a project")
-async def upload_user_data(project_id: str, user_id: str, user_data: UserData):
-    """
-    Upload user data to a specific project. Creates a table for the user if it doesn't exist.
-    """
-    conn = get_project_db(project_id)
-    cursor = conn.cursor()
-    # Create a table for the user if it doesn't exist
-    cursor.execute(f'''CREATE TABLE IF NOT EXISTS user_{user_id} (
-                        data_id TEXT PRIMARY KEY,
-                        longitude REAL,
-                        latitude REAL,
-                        timestamp TEXT)''')
-    for entry in user_data.entries:
-        data_id = str(uuid.uuid4())
-        cursor.execute(f"INSERT INTO user_{user_id} (data_id, longitude, latitude, timestamp) VALUES (?, ?, ?, ?)",
-                       (data_id, entry.longitude, entry.latitude, entry.timestamp))
-    conn.commit()
-    conn.close()
-    return {"message": "User data uploaded successfully"}
+# Middleware for logging requests
+@app.middleware("http")
+async def log_requests(request, call_next):
+    logger.info(f"Request: {request.method} {request.url}")
+    response = await call_next(request)
+    logger.info(f"Response status: {response.status_code}")
+    return response
 
-# Run the server
-# uvicorn main:app --reload
+
+# Homepage route
+@app.get("/", response_class=HTMLResponse)
+async def read_homepage(request: Request):
+    """Homepage with links to all pages"""
+    return templates.TemplateResponse("index.html", {"request": request})
+
+
+# Users homepage route
+@app.get("/users", response_class=HTMLResponse, tags=["users"])
+async def users_homepage(request: Request):
+    """Users Homepage"""
+    return templates.TemplateResponse("users_homepage.html", {"request": request})
+
+
+# Projects homepage route
+@app.get("/projects", response_class=HTMLResponse, tags=["projects"])
+async def projects_homepage(request: Request):
+    """Projects Homepage"""
+    return templates.TemplateResponse("projects_homepage.html", {"request": request})
+
+
+# Admin homepage route
+@app.get("/admin", response_class=HTMLResponse, tags=["admin"])
+async def admin_homepage(request: Request):
+    """Admin Homepage"""
+    return templates.TemplateResponse("admin_homepage.html", {"request": request})

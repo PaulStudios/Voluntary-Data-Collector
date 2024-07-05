@@ -25,7 +25,7 @@ fun ProjectIdFormScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
 
     val coroutineScope = rememberCoroutineScope()
-    val maxRetries = 3
+    val maxRetries = 2
     val logTag = "ProjectIdScreen"
 
     Scaffold(

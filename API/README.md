@@ -1,135 +1,266 @@
-
----
-
 # Voluntary Data Tracker API
 
-This API is designed for managing projects and user data for the Voluntary Data Tracker application. The API allows you to create projects, upload user data, and retrieve project details.
+## Overview
 
-## Table of Contents
+The Voluntary Data Tracker API is a FastAPI-based application for managing projects and user data. This API includes endpoints for user authentication, project management, and data uploads. It uses SQLAlchemy for database operations and Jinja2 for templating.
 
-- [Endpoints](#endpoints)
-  - [Index Page](#index-page)
-  - [Create a Project](#create-a-project)
-  - [Get Project Details](#get-project-details)
-  - [Upload User Data](#upload-user-data)
-- [Getting Started](#getting-started)
-- [Dependencies](#dependencies)
+## Features
 
-## Endpoints
+- User Authentication (Login, Token Refresh)
+- Admin Operations (Create User, Delete User)
+- Project Management (Create Project, Upload User Data, Retrieve User Data)
+- Static Files and Template Rendering
 
-### Index Page
+## Requirements
 
-**URL**: `/`
+- Python 3.8+
+- FastAPI
+- SQLAlchemy
+- Jinja2
+- Uvicorn (for running the app)
 
-**Method**: `GET`
+## Installation
 
-**Description**: Displays an index page listing all projects and provides a form to create a new project.
+1. Clone the repository:
 
-**Response**:
-- **HTML**: Renders an HTML page listing all projects and a form for creating a new project.
-
-### Create a Project
-
-**URL**: `/project/`
-
-**Method**: `POST`
-
-**Description**: Creates a new project with the specified name and description.
-
-**Request Parameters**:
-- **Form Data**:
-  - `project_name` (str): Name of the project (required, minimum length: 3).
-  - `project_description` (str): Description of the project (required, minimum length: 10).
-
-**Response**:
-- **JSON**:
-  - `message` (str): Success message.
-  - `project_id` (str): The unique 6-digit ID of the created project.
-
-### Get Project Details
-
-**URL**: `/project/{project_id}`
-
-**Method**: `GET`
-
-**Description**: Retrieves the details of a specific project by its ID.
-
-**Request Parameters**:
-- **Path**:
-  - `project_id` (str): The unique 6-digit ID of the project.
-
-**Response**:
-- **JSON**:
-  - `project_id` (str): The unique ID of the project.
-  - `project_name` (str): The name of the project.
-  - `project_description` (str): The description of the project.
-
-### Upload User Data
-
-**URL**: `/project/{project_id}/user_data`
-
-**Method**: `POST`
-
-**Description**: Uploads user data to a specific project. Creates a table for the user if it doesn't exist.
-
-**Request Parameters**:
-- **Path**:
-  - `project_id` (str): The unique 6-digit ID of the project.
-- **Query**:
-  - `user_id` (str): The unique ID of the user.
-- **Body**:
-  - `user_data` (UserData): A JSON object containing user data entries.
-
-**Response**:
-- **JSON**:
-  - `message` (str): Success message.
-
-### UserDataEntry Model
-
-```python
-class UserDataEntry(BaseModel):
-    longitude: float
-    latitude: float
-    timestamp: str
-```
-
-### UserData Model
-
-```python
-class UserData(BaseModel):
-    entries: List[UserDataEntry]
-```
-
-## Getting Started
-
-To get started with the Voluntary Data Tracker API, follow these steps:
-
-1. **Clone the repository**:
     ```bash
-    git clone https://github.com/your-username/voluntary-data-tracker.git
+    git clone https://github.com/PaulStudios/voluntary-data-tracker.git
     cd voluntary-data-tracker
     ```
 
-2. **Install dependencies**:
+2. Create and activate a virtual environment:
+
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+
+3. Install the dependencies:
+
     ```bash
     pip install -r requirements.txt
     ```
 
-3. **Run the server**:
-    ```bash
-    uvicorn main:app --reload
+## Running the Application
+
+Start the FastAPI server using Uvicorn:
+
+```bash
+uvicorn main:app --reload
+````
+
+The application will be available at `http://127.0.0.1:8000`.
+
+## API Documentation
+
+FastAPI generates interactive API documentation:
+
+- Swagger UI: `http://127.0.0.1:8000/docs`
+- ReDoc: `http://127.0.0.1:8000/redoc`
+
+## Endpoints
+
+### Homepage
+
+- **GET /**: Returns the homepage with links to all pages.
+
+    ```http
+    GET /
     ```
 
-4. **Access the API documentation**:
-    - Swagger UI: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
-    - ReDoc: [http://127.0.0.1:8000/redoc](http://127.0.0.1:8000/redoc)
+### Users Homepage
 
-## Dependencies
+- **GET /users**: Returns the users' homepage.
 
-- `fastapi`
-- `sqlite3`
-- `pydantic`
-- `uvicorn`
+    ```http
+    GET /users
+    ```
 
----
+### Projects Homepage
+
+- **GET /projects**: Returns the projects' homepage.
+
+    ```http
+    GET /projects
+    ```
+
+### Admin Homepage
+
+- **GET /admin**: Returns the admin homepage.
+
+    ```http
+    GET /admin
+    ```
+
+### Admin Operations
+
+#### Create User
+
+- **POST /admin/users/**: Create a new user.
+
+    ```http
+    POST /admin/users/
+    ```
+
+    Request Body (form-data):
+
+    - `username`: str
+    - `password`: str
+    - `email`: str
+    - `full_name`: str
+    - `is_admin`: bool (optional)
+
+    Response:
+
+    ```json
+    {
+        "username": "new_user",
+        "email": "new_user@example.com",
+        "full_name": "New User",
+        "is_admin": false
+    }
+    ```
+
+#### Delete User
+
+- **DELETE /admin/users/{username}**: Delete a user by username.
+
+    ```http
+    DELETE /admin/users/{username}
+    ```
+
+    Response:
+
+    ```json
+    {
+        "message": "User {username} deleted successfully"
+    }
+    ```
+
+### Project Operations
+
+#### Create Project
+
+- **POST /project/**: Create a new project.
+
+    ```http
+    POST /project/
+    ```
+
+    Request Body (form-data):
+
+    - `project_name`: str
+    - `project_description`: str
+
+    Response:
+
+    ```json
+    {
+        "project_name": "New Project",
+        "project_description": "Description of the new project"
+    }
+    ```
+
+#### Retrieve User Data for a Project
+
+- **GET /project/{project_id}/user_data/{user_id}**: Retrieve user data for a specific project and user. Optionally filter by upload ID.
+
+    ```http
+    GET /project/{project_id}/user_data/{user_id}
+    ```
+
+    Query Parameters:
+
+    - `upload_id` (optional): str
+
+    Response:
+
+    ```json
+    {
+        "data": [
+            {
+                "data_id": "uuid",
+                "longitude": "longitude",
+                "latitude": "latitude",
+                "timestamp": "timestamp",
+                "upload_id": "upload_id"
+            }
+        ]
+    }
+    ```
+
+#### Upload User Data to a Project
+
+- **POST /project/{project_id}/user_data**: Upload user data to a specific project.
+
+    ```http
+    POST /project/{project_id}/user_data
+    ```
+
+    Request Body (form-data):
+
+    - `user_id`: int
+    - `upload_id`: str
+    - `user_data`: JSON (Refer to schema `UserData`)
+
+    Response:
+
+    ```json
+    {
+        "message": "User data uploaded successfully"
+    }
+    ```
+
+### User Operations
+
+#### Login for Access Token
+
+- **POST /token**: Authenticate user and return access token and refresh token.
+
+    ```http
+    POST /token
+    ```
+
+    Request Body (form-data):
+
+    - `username`: str
+    - `password`: str
+
+    Response:
+
+    ```json
+    {
+        "access_token": "access_token",
+        "token_type": "bearer",
+        "refresh_token": "refresh_token"
+    }
+    ```
+
+#### Refresh Access Token
+
+- **POST /refresh**: Refresh access token using refresh token.
+
+    ```http
+    POST /refresh
+    ```
+
+    Request Body (form-data):
+
+    - `refresh_token`: str
+
+    Response:
+
+    ```json
+    {
+        "access_token": "access_token",
+        "token_type": "bearer"
+    }
+    ```
+
+## Contact
+
+For any inquiries or issues, please contact:
+
+- Email: [paulstudiosofficial@gmail.com](mailto:paulstudiosofficial@gmail.com)
+- GitHub: [PaulStudios](https://github.com/PaulStudios)
 

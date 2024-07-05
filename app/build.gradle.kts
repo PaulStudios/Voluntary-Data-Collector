@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
     kotlin("android") version "1.9.0" // Replace with your Kotlin version if necessary
+    kotlin("plugin.serialization") version "2.0.0"
 }
 buildscript {
     repositories {
@@ -68,6 +69,10 @@ dependencies {
     implementation(libs.ui.tooling.preview)
     implementation(libs.androidx.compose.material3.material3)
     implementation(libs.androidx.room.runtime.android)
+    implementation(libs.androidx.monitor)
+    implementation(libs.androidx.junit.ktx)
+    testImplementation(libs.junit.junit)
+    androidTestImplementation(libs.junit.junit)
 
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
@@ -103,6 +108,8 @@ dependencies {
     implementation(libs.androidx.activity.compose.v131)
 
     implementation(libs.annotations.v2300)
+
+    implementation(libs.kotlinx.serialization.json)
 }
 
 configurations {

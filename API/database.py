@@ -1,14 +1,20 @@
-import sqlite3
-import os
-from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from databases import Database
 
+SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
+DATABASE_URL = "sqlite:///./sql_app.db"
+
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+database = Database(DATABASE_URL)
+
+Base = declarative_base()
 
 def get_db():
-    return sqlite3.connect('voluntary_data_tracker.db', check_same_thread=False)
-
-
-def get_project_db(project_id: str):
-    db_name = f'project_{project_id}.db'
-    if not os.path.exists(db_name):
-        raise HTTPException(status_code=404, detail="Project database not found")
-    return sqlite3.connect(db_name, check_same_thread=False)
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
