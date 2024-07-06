@@ -2,265 +2,125 @@
 
 ## Overview
 
-The Voluntary Data Tracker API is a FastAPI-based application for managing projects and user data. This API includes endpoints for user authentication, project management, and data uploads. It uses SQLAlchemy for database operations and Jinja2 for templating.
+The Voluntary Data Tracker API is a FastAPI-based application designed for managing projects and user data. This API provides endpoints for user authentication, project management, and data uploads. It uses SQLAlchemy for database operations and Jinja2 for templating.
 
 ## Features
 
-- User Authentication (Login, Token Refresh)
-- Admin Operations (Create User, Delete User)
-- Project Management (Create Project, Upload User Data, Retrieve User Data)
-- Static Files and Template Rendering
-
-## Requirements
-
-- Python 3.8+
-- FastAPI
-- SQLAlchemy
-- Jinja2
-- Uvicorn (for running the app)
+- **User Authentication**: Secure user login with JWT-based access and refresh tokens.
+- **Project Management**: Create, retrieve, and manage projects.
+- **User Data Uploads**: Upload and retrieve user data for specific projects.
+- **Admin Functions**: Admin routes for user creation and deletion.
+- **Logging**: Comprehensive logging for monitoring requests and actions.
+- **Templating**: HTML responses using Jinja2 templates.
+- **Static Files**: Support for serving static files.
 
 ## Installation
 
-1. Clone the repository:
+1. **Clone the repository**:
 
     ```bash
-    git clone https://github.com/PaulStudios/voluntary-data-tracker.git
-    cd voluntary-data-tracker
+    git clone https://github.com/PaulStudios/voluntary-data-tracker-api.git
+    cd voluntary-data-tracker-api
     ```
 
-2. Create and activate a virtual environment:
+2. **Create and activate a virtual environment**:
 
     ```bash
     python -m venv venv
     source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
 
-3. Install the dependencies:
+3. **Install the dependencies**:
 
     ```bash
     pip install -r requirements.txt
     ```
 
-## Running the Application
+4. **Run the application**:
 
-Start the FastAPI server using Uvicorn:
+    ```bash
+    uvicorn main:app --reload
+    ```
 
-```bash
-uvicorn main:app --reload
-````
+5. **Access the application**:
+    Open your web browser and go to [http://localhost:8000](http://localhost:8000)
 
-The application will be available at `http://127.0.0.1:8000`.
+## Configuration
 
-## API Documentation
+The application uses environment variables for configuration. You can create a `.env` file in the project root with the following contents:
 
-FastAPI generates interactive API documentation:
-
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
+```env
+DATABASE_URL=sqlite:///./test.db
+SECRET_KEY=your_secret_key
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+```
 
 ## Endpoints
 
-### Homepage
+### Authentication
 
-- **GET /**: Returns the homepage with links to all pages.
+- **Login**: `POST /token`
+  - Authenticates a user and returns access and refresh tokens.
 
-    ```http
-    GET /
-    ```
+- **Refresh Token**: `POST /refresh`
+  - Refreshes the access token using the refresh token.
 
-### Users Homepage
+### Admin
 
-- **GET /users**: Returns the users' homepage.
+- **Create User**: `POST /admin/users/`
+  - Creates a new user. Admin-only route.
 
-    ```http
-    GET /users
-    ```
+- **Delete User**: `DELETE /admin/users/{username}`
+  - Deletes a user by username. Admin-only route.
 
-### Projects Homepage
+### Projects
 
-- **GET /projects**: Returns the projects' homepage.
+- **List Projects**: `GET /project/`
+  - Retrieves and renders a list of all projects.
 
-    ```http
-    GET /projects
-    ```
+- **Create Project**: `POST /project/`
+  - Creates a new project.
 
-### Admin Homepage
+- **Retrieve Project Data**: `GET /project/{project_id}`
+  - Retrieves data for a specific project.
 
-- **GET /admin**: Returns the admin homepage.
+- **Upload User Data**: `POST /project/{project_id}/user_data`
+  - Uploads user data to a specific project.
 
-    ```http
-    GET /admin
-    ```
+- **Retrieve User Data**: `GET /project/{project_id}/user_data/{user_id}`
+  - Retrieves user data for a specific project and user.
 
-### Admin Operations
+## Logging
 
-#### Create User
+Logging is configured at the `INFO` level. Logs are output to the console and provide information about requests and significant actions within the application.
 
-- **POST /admin/users/**: Create a new user.
+## Middleware
 
-    ```http
-    POST /admin/users/
-    ```
+A middleware is included for logging each HTTP request and response status.
 
-    Request Body (form-data):
+## Templating
 
-    - `username`: str
-    - `password`: str
-    - `email`: str
-    - `full_name`: str
-    - `is_admin`: bool (optional)
+The application uses Jinja2 templates to render HTML responses. Templates are located in the `templates` directory.
 
-    Response:
+## Static Files
 
-    ```json
-    {
-        "username": "new_user",
-        "email": "new_user@example.com",
-        "full_name": "New User",
-        "is_admin": false
-    }
-    ```
+Static files are served from the `static` directory.
 
-#### Delete User
+## Contributing
 
-- **DELETE /admin/users/{username}**: Delete a user by username.
+Contributions are welcome! Please create a pull request or open an issue to discuss changes.
 
-    ```http
-    DELETE /admin/users/{username}
-    ```
+## License
 
-    Response:
-
-    ```json
-    {
-        "message": "User {username} deleted successfully"
-    }
-    ```
-
-### Project Operations
-
-#### Create Project
-
-- **POST /project/**: Create a new project.
-
-    ```http
-    POST /project/
-    ```
-
-    Request Body (form-data):
-
-    - `project_name`: str
-    - `project_description`: str
-
-    Response:
-
-    ```json
-    {
-        "project_name": "New Project",
-        "project_description": "Description of the new project"
-    }
-    ```
-
-#### Retrieve User Data for a Project
-
-- **GET /project/{project_id}/user_data/{user_id}**: Retrieve user data for a specific project and user. Optionally filter by upload ID.
-
-    ```http
-    GET /project/{project_id}/user_data/{user_id}
-    ```
-
-    Query Parameters:
-
-    - `upload_id` (optional): str
-
-    Response:
-
-    ```json
-    {
-        "data": [
-            {
-                "data_id": "uuid",
-                "longitude": "longitude",
-                "latitude": "latitude",
-                "timestamp": "timestamp",
-                "upload_id": "upload_id"
-            }
-        ]
-    }
-    ```
-
-#### Upload User Data to a Project
-
-- **POST /project/{project_id}/user_data**: Upload user data to a specific project.
-
-    ```http
-    POST /project/{project_id}/user_data
-    ```
-
-    Request Body (form-data):
-
-    - `user_id`: int
-    - `upload_id`: str
-    - `user_data`: JSON (Refer to schema `UserData`)
-
-    Response:
-
-    ```json
-    {
-        "message": "User data uploaded successfully"
-    }
-    ```
-
-### User Operations
-
-#### Login for Access Token
-
-- **POST /token**: Authenticate user and return access token and refresh token.
-
-    ```http
-    POST /token
-    ```
-
-    Request Body (form-data):
-
-    - `username`: str
-    - `password`: str
-
-    Response:
-
-    ```json
-    {
-        "access_token": "access_token",
-        "token_type": "bearer",
-        "refresh_token": "refresh_token"
-    }
-    ```
-
-#### Refresh Access Token
-
-- **POST /refresh**: Refresh access token using refresh token.
-
-    ```http
-    POST /refresh
-    ```
-
-    Request Body (form-data):
-
-    - `refresh_token`: str
-
-    Response:
-
-    ```json
-    {
-        "access_token": "access_token",
-        "token_type": "bearer"
-    }
-    ```
+This project is licensed under the GNU GPLv3 License. See the `LICENSE` file for details.
 
 ## Contact
 
-For any inquiries or issues, please contact:
+- **PaulStudios [HilFing]**
+  - **GitHub**: [PaulStudios](https://github.com/PaulStudios)
+  - **Email**: paulstudiosofficial@gmail.com
 
-- Email: [paulstudiosofficial@gmail.com](mailto:paulstudiosofficial@gmail.com)
-- GitHub: [PaulStudios](https://github.com/PaulStudios)
+---
 
+Feel free to reach out for any queries or support!
