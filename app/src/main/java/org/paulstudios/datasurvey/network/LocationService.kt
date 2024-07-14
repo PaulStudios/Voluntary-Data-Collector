@@ -5,12 +5,14 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
 import android.os.IBinder
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
@@ -32,6 +34,7 @@ import org.paulstudios.datasurvey.data.storage.UserIdManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.TimeUnit
 
 class LocationService : Service() {
 
@@ -40,19 +43,31 @@ class LocationService : Service() {
     private lateinit var userIdManager: UserIdManager
     private val gpsDataList = mutableListOf<GPSData>()
     private var collectionJob: Job? = null
+    private lateinit var notificationManager: NotificationManager
+    private val CHANNEL_ID = "LocationServiceChannel"
+    private val NOTIFICATION_ID = 1
+    private var startTime: Long = 0
 
     override fun onCreate() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         jsonStorage = JsonStorage(applicationContext)
         userIdManager = UserIdManager(applicationContext)
+        notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        createNotificationChannel()
+        startTime = SystemClock.elapsedRealtime()
         startForegroundService()
         startDataCollection()
     }
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            "STOP_SERVICE" -> stopSelf()
+        }
+        return START_STICKY
     }
+
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
         super.onDestroy()
@@ -60,40 +75,63 @@ class LocationService : Service() {
         saveData()
     }
 
-    private fun startForegroundService() {
-        val channelId = "LocationServiceChannel"
+    private fun createNotificationChannel() {
         val channel = NotificationChannel(
-            channelId,
+            CHANNEL_ID,
             "Location Service",
             NotificationManager.IMPORTANCE_DEFAULT
-        )
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        manager.createNotificationChannel(channel)
-        val notification: Notification = NotificationCompat.Builder(this, channelId)
+        ).apply {
+            description = "Ongoing notification for location data collection"
+        }
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun startForegroundService() {
+        val notification = createNotification("Collecting location data...")
+        startForeground(NOTIFICATION_ID, notification)
+    }
+
+    private fun createNotification(contentText: String): Notification {
+        val stopIntent = Intent(this, LocationService::class.java).apply {
+            action = "STOP_SERVICE"
+        }
+        val stopPendingIntent = PendingIntent.getService(this, 0, stopIntent, PendingIntent.FLAG_IMMUTABLE)
+
+        return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Location Service")
-            .setContentText("Collecting location data in background")
+            .setContentText(contentText)
             .setSmallIcon(R.drawable.baseline_share_location_24)
+            .addAction(R.drawable.baseline_stop_circle_24, "Stop", stopPendingIntent)
             .build()
-        startForeground(1, notification)
     }
 
     private fun startDataCollection() {
         collectionJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
                 try {
-                    val location = getLocation() ?: continue
-                    val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-                    gpsDataList.add(GPSData(location.latitude, location.longitude, timestamp))
+                    val location = getLocation()
+                    if (location != null) {
+                        val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+                        gpsDataList.add(GPSData(location.latitude, location.longitude, timestamp))
+                        val elapsedTime = SystemClock.elapsedRealtime() - startTime
+                        val formattedElapsedTime = formatElapsedTime(elapsedTime)
+                        updateNotification("Last location: ${location.latitude}, ${location.longitude}. Running time: $formattedElapsedTime")
+                    }
                     delay(10000)
                 } catch (e: SecurityException) {
                     Log.e("LocationService", "Location permission error", e)
                     stopSelf()
                 } catch (e: Exception) {
                     Log.e("LocationService", "Error collecting location data", e)
-                    delay(10000) // Retry after a delay
+                    delay(10000)
                 }
             }
         }
+    }
+
+    private fun updateNotification(contentText: String) {
+        val notification = createNotification(contentText)
+        notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
     private fun saveData() {
@@ -134,5 +172,12 @@ class LocationService : Service() {
             Log.e("LocationService", "Error getting location", e)
             null
         }
+    }
+
+    private fun formatElapsedTime(elapsedTime: Long): String {
+        val hours = TimeUnit.MILLISECONDS.toHours(elapsedTime)
+        val minutes = TimeUnit.MILLISECONDS.toMinutes(elapsedTime) % 60
+        val seconds = TimeUnit.MILLISECONDS.toSeconds(elapsedTime) % 60
+        return String.format("%02d:%02d:%02d", hours, minutes, seconds)
     }
 }
