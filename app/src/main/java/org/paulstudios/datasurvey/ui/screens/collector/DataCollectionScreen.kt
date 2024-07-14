@@ -31,17 +31,31 @@ import org.paulstudios.datasurvey.data.collector.UploadStatus
 @Composable
 fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
     val context = LocalContext.current
-    var showPermissionInfoDialog by remember { mutableStateOf(false) }
-    var showSettingsDialog by remember { mutableStateOf(false) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
+    var permissionDialogType by remember { mutableStateOf<PermissionDialogType>(PermissionDialogType.Initial) }
+
+    val requiredPermissions = remember {
+        mutableListOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.FOREGROUND_SERVICE,
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+            Manifest.permission.POST_NOTIFICATIONS
+        ).apply {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.FOREGROUND_SERVICE_LOCATION)
+            }
+        }.toTypedArray()
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        val allGranted = permissions.values.all { it }
-        if (allGranted) {
+        if (permissions.values.all { it }) {
             viewModel.onPermissionsGranted(context)
         } else {
-            showSettingsDialog = true
+            permissionDialogType = PermissionDialogType.Settings
+            showPermissionDialog = true
         }
     }
     val status by viewModel.status.collectAsState()
@@ -56,11 +70,6 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
     val uploadStatus by viewModel.uploadStatus.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(Unit) {
-        viewModel.updateBatteryOptimizationStatus(context)
-        permissionsGranted = checkPermissions(context)
-    }
 
     Scaffold(
         topBar = {
@@ -81,14 +90,10 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
                 Text(text = status)
                 Spacer(modifier = Modifier.height(20.dp))
                 Button(onClick = {
-                    if (permissionsGranted) {
-                        if (batteryOptimizationStatus) {
-                            viewModel.startDataCollection(context)
-                        } else {
-                            showBatteryOptimizationDialog = true
-                        }
+                    if (!arePermissionsGranted(context, requiredPermissions)) {
+                        requestPermissions(permissionLauncher, requiredPermissions)
                     } else {
-                        showPermissionInfoDialog = true
+                        viewModel.startDataCollection(context)
                     }
                 }) {
                     Text("Start Data Collection")
@@ -138,64 +143,19 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
         }
     )
 
-    if (showPermissionInfoDialog) {
-        AlertDialog(
-            onDismissRequest = { showPermissionInfoDialog = false },
-            title = { Text("Permission Information") },
-            text = {
-                Text("This app requires location permissions to collect GPS data for research purposes. " +
-                        "We need access to your location in the background to continue collecting data even when the app is not in use. " +
-                        "Your data will be anonymized and used solely for the purpose of this study.")
-            },
-            confirmButton = {
-                Button(onClick = {
-                    showPermissionInfoDialog = false
-                    requestPermissions(permissionLauncher)
-                }) {
-                    Text("OK, Request Permissions")
-                }
-            },
-            dismissButton = {
-                Button(onClick = { showPermissionInfoDialog = false }) {
-                    Text("Cancel")
-                }
+if (showPermissionDialog) {
+    PermissionDialog(
+        type = permissionDialogType,
+        onDismiss = { showPermissionDialog = false },
+        onConfirm = {
+            showPermissionDialog = false
+            when (permissionDialogType) {
+                PermissionDialogType.Initial -> requestPermissions(permissionLauncher, requiredPermissions)
+                PermissionDialogType.Settings -> openAppSettings(context)
             }
-        )
-    }
-
-    if (showSettingsDialog) {
-        AlertDialog(
-            onDismissRequest = { showSettingsDialog = false },
-            title = { Text("Permission Required") },
-            text = { Text("Some permissions were denied. Please grant all required permissions in the app settings to use this feature.") },
-            confirmButton = {
-                Button(onClick = {
-                    showSettingsDialog = false
-                    openAppSettings(context)
-                }) {
-                    Text("Open Settings")
-                }
-            },
-            dismissButton = {
-                Button(onClick = { showSettingsDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (showPermissionDeniedDialog) {
-        AlertDialog(
-            onDismissRequest = { showPermissionDeniedDialog = false },
-            title = { Text("Permission Denied") },
-            text = { Text("Location permissions are required to collect GPS data. Please grant the permissions to continue.") },
-            confirmButton = {
-                Button(onClick = { showPermissionDeniedDialog = false }) {
-                    Text("OK")
-                }
-            }
-        )
-    }
+        }
+    )
+}
 
     LaunchedEffect(uploadStatus) {
         when (uploadStatus) {
@@ -211,29 +171,51 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
     }
 }
 
-fun checkPermissions(context: Context): Boolean {
-    return ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+@Composable
+fun PermissionDialog(
+    type: PermissionDialogType,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (type == PermissionDialogType.Initial) "Permission Information" else "Permission Required") },
+        text = {
+            Text(
+                when (type) {
+                    PermissionDialogType.Initial -> "This app requires location permissions to collect GPS data for research purposes. We need access to your location in the background to continue collecting data even when the app is not in use. Your data will be anonymized and used solely for the purpose of this study."
+                    PermissionDialogType.Settings -> "Some permissions were denied. Please grant all required permissions in the app settings to use this feature."
+                }
+            )
+        },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text(if (type == PermissionDialogType.Initial) "OK, Request Permissions" else "Open Settings")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
-@RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-private fun requestPermissions(permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>) {
-    val permissions = mutableListOf(
-        Manifest.permission.ACCESS_FINE_LOCATION,
-        Manifest.permission.ACCESS_COARSE_LOCATION,
-        Manifest.permission.FOREGROUND_SERVICE,
-        Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-        Manifest.permission.POST_NOTIFICATIONS
-    )
+enum class PermissionDialogType {
+    Initial, Settings
+}
 
-    permissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        permissions.add(Manifest.permission.FOREGROUND_SERVICE_LOCATION)
+fun arePermissionsGranted(context: Context, permissions: Array<String>): Boolean {
+    return permissions.all { permission ->
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
+}
 
-    permissionLauncher.launch(permissions.toTypedArray())
+private fun requestPermissions(
+    permissionLauncher: ManagedActivityResultLauncher<Array<String>, Map<String, Boolean>>,
+    permissions: Array<String>
+) {
+    permissionLauncher.launch(permissions)
 }
 
 private fun openAppSettings(context: Context) {
