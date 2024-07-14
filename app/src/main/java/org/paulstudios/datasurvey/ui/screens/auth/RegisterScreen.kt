@@ -1,92 +1,113 @@
 package org.paulstudios.datasurvey.ui.screens.auth
 
+import android.app.Activity
+import android.content.Context
 import android.util.Log
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
-import org.paulstudios.datasurvey.R
+import com.google.firebase.auth.OAuthProvider
+import com.google.firebase.auth.GoogleAuthProvider
 import org.paulstudios.datasurvey.data.models.Screen
+import org.paulstudios.datasurvey.ui.screens.auth.components.AuthScreen
+import org.paulstudios.datasurvey.ui.screens.auth.components.PasswordStrengthBar
+import org.paulstudios.datasurvey.ui.screens.auth.components.calculatePasswordStrength
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(navController: NavController) {
     val email = remember { mutableStateOf("") }
     val password = remember { mutableStateOf("") }
     val auth = FirebaseAuth.getInstance()
+    val context = navController.context
+    var errorMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                contentDescription = "App Logo",
-                modifier = Modifier.size(100.dp)
-            )
+    val sharedPreferences = context.getSharedPreferences("AuthPrefs", Context.MODE_PRIVATE)
 
-            Spacer(modifier = Modifier.height(32.dp))
-
-            OutlinedTextField(
-                value = email.value,
-                onValueChange = { email.value = it },
-                label = { Text("Email") },
-                leadingIcon = { Icon(Icons.Filled.Email, contentDescription = null) },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = password.value,
-                onValueChange = { password.value = it },
-                label = { Text("Password") },
-                leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    auth.createUserWithEmailAndPassword(email.value, password.value)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                navController.navigate(Screen.ProjectIdForm.route)
-                            } else {
-                                Log.w("Register", "createUserWithEmail:failure", task.exception)
-                            }
-                        }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Register")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(onClick = { navController.navigate(Screen.Login.route) }) {
-                Text("Already have an account? Login")
-            }
+    fun saveUserId(userId: String) {
+        with(sharedPreferences.edit()) {
+            putString("userId", userId)
+            apply()
         }
     }
+
+    fun signInWithGithub() {
+        isLoading = true
+        val provider = OAuthProvider.newBuilder("github.com")
+        val pendingResultTask = auth.pendingAuthResult
+        if (pendingResultTask != null) {
+            pendingResultTask.addOnCompleteListener { task ->
+                isLoading = false
+                if (task.isSuccessful) {
+                    saveUserId(auth.currentUser?.uid ?: "")
+                    navController.navigate(Screen.ProjectIdForm.route)
+                } else {
+                    val exception = task.exception
+                    Log.w("Register", "signInWithGithub:failure", exception)
+                    errorMessage = exception?.localizedMessage ?: "GitHub sign-in failed"
+                }
+            }
+        } else {
+            auth.startActivityForSignInWithProvider(navController.context as Activity, provider.build())
+                .addOnCompleteListener { task ->
+                    isLoading = false
+                    if (task.isSuccessful) {
+                        saveUserId(auth.currentUser?.uid ?: "")
+                        navController.navigate(Screen.ProjectIdForm.route)
+                    } else {
+                        val exception = task.exception
+                        Log.w("Register", "signInWithGithub:failure", exception)
+                        errorMessage = exception?.localizedMessage ?: "GitHub sign-in failed"
+                    }
+                }
+        }
+    }
+
+    fun signInWithGoogle() {
+        isLoading = true
+        val provider = GoogleAuthProvider.getCredential(null, null)
+        auth.signInWithCredential(provider)
+            .addOnCompleteListener { task ->
+                isLoading = false
+                if (task.isSuccessful) {
+                    saveUserId(auth.currentUser?.uid ?: "")
+                    navController.navigate(Screen.ProjectIdForm.route)
+                } else {
+                    val exception = task.exception
+                    Log.w("Register", "signInWithGoogle:failure", exception)
+                    errorMessage = exception?.localizedMessage ?: "Google sign-in failed"
+                }
+            }
+    }
+
+    AuthScreen(
+        email = email,
+        password = password,
+        buttonText = "Register",
+        onSubmit = {
+            isLoading = true
+            auth.createUserWithEmailAndPassword(email.value, password.value)
+                .addOnCompleteListener { task ->
+                    isLoading = false
+                    if (task.isSuccessful) {
+                        saveUserId(auth.currentUser?.uid ?: "")
+                        navController.navigate(Screen.ProjectIdForm.route)
+                    } else {
+                        val exception = task.exception
+                        Log.w("Register", "createUserWithEmail:failure", exception)
+                        errorMessage = exception?.localizedMessage ?: "Registration failed"
+                    }
+                }
+        },
+        secondaryButtonText = "Already have an account? Login",
+        onSecondaryButtonClick = { navController.navigate(Screen.Login.route) },
+        passwordStrengthComposable = {
+            val strength = calculatePasswordStrength(password.value)
+            PasswordStrengthBar(strength)
+        },
+        errorMessage = errorMessage,
+        isLoading = isLoading,
+        onGithubLogin = ::signInWithGithub,
+        onGoogleLogin = ::signInWithGoogle
+    )
 }

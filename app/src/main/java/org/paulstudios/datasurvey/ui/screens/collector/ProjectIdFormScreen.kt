@@ -6,12 +6,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import org.paulstudios.datasurvey.network.RetrofitInstance
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.paulstudios.datasurvey.data.storage.UserIdManager
 import retrofit2.HttpException
 import java.io.IOException
 
@@ -27,6 +29,14 @@ fun ProjectIdFormScreen(navController: NavController) {
     val coroutineScope = rememberCoroutineScope()
     val maxRetries = 2
     val logTag = "ProjectIdScreen"
+    val context = LocalContext.current
+    val userIdManager = remember { UserIdManager(context) }
+
+    LaunchedEffect(Unit) {
+        userIdManager.getProjectId()?.let {
+            projectId = TextFieldValue(it)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -82,6 +92,8 @@ fun ProjectIdFormScreen(navController: NavController) {
                                         val response = RetrofitInstance.api.getProjectDetails(projectId.text)
                                         if (response.isSuccessful) {
                                             Log.d(logTag, "Project ID ${projectId.text} validated successfully.")
+                                            // Save the project ID
+                                            userIdManager.saveProjectId(projectId.text)
                                             navController.navigate("data_collection")
                                             success = true
                                         } else {

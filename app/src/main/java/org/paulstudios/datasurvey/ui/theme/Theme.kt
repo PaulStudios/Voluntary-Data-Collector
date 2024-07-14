@@ -10,28 +10,28 @@ import androidx.compose.ui.graphics.Color
 
 private val LightColorPalette = lightColorScheme(
     primary = Color(0xFF6200EE),
-    primaryContainer = Color(0xFFD1C4E9),
+    primaryContainer = Color(0xFFBB86FC),
     secondary = Color(0xFF03DAC6),
-    secondaryContainer = Color(0xFFB2EBF2),
-    surface = Color.White,
-    surfaceTint = Color(0xFFF2F2F2),
-    surfaceVariant = Color(0xFFE0E0E0),
-    background = Color.White,
-    onPrimary = Color.Black,
-    onPrimaryContainer = Color.Black,
-    onSecondary = Color.Black,
-    onSecondaryContainer = Color.Black,
-    onSurface = Color.Black,
-    onSurfaceVariant = Color.Black,
-    onBackground = Color.Black,
+    secondaryContainer = Color(0xFF018786),
+    surface = Color(0xFFFFFFFF),
+    surfaceTint = Color(0xFFE0E0E0),
+    surfaceVariant = Color(0xFFECECEC),
+    background = Color(0xFFF2F2F2),
+    onPrimary = Color(0xFFFFFFFF),
+    onPrimaryContainer = Color(0xFF3700B3),
+    onSecondary = Color(0xFF000000),
+    onSecondaryContainer = Color(0xFF3700B3),
+    onSurface = Color(0xFF000000),
+    onSurfaceVariant = Color(0xFF000000),
+    onBackground = Color(0xFF000000),
     error = Color(0xFFB00020),
-    onError = Color.White,
-    onErrorContainer = Color(0xFFFFEBEE), // Provide a value for errorContainer
-    inverseOnSurface = Color.Black,
-    inversePrimary = Color.Black,
-    inverseSurface = Color.White,
-    onTertiary = Color.Black,
-    onTertiaryContainer = Color.White,
+    onError = Color(0xFFFFFFFF),
+    onErrorContainer = Color(0xFFFFEBEE),
+    inverseOnSurface = Color(0xFFFFFFFF),
+    inversePrimary = Color(0xFF3700B3),
+    inverseSurface = Color(0xFF121212),
+    onTertiary = Color(0xFFFFFFFF),
+    onTertiaryContainer = Color(0xFF018786),
     outline = Color(0xFF757575),
     outlineVariant = Color(0xFF212121),
     scrim = Color(0x99000000),
@@ -41,33 +41,33 @@ private val LightColorPalette = lightColorScheme(
 
 private val DarkColorPalette = darkColorScheme(
     primary = Color(0xFFBB86FC),
-    primaryContainer = Color(0xFF3700B3),
+    primaryContainer = Color(0xFF6200EE),
     secondary = Color(0xFF03DAC6),
-    secondaryContainer = Color(0xFFB2EBF2),
-    surface = Color.Black,
-    surfaceTint = Color(0xFF121212),
+    secondaryContainer = Color(0xFF018786),
+    surface = Color(0xFF121212),
+    surfaceTint = Color(0xFF1F1F1F),
     surfaceVariant = Color(0xFF1E1E1E),
-    background = Color.Black,
-    onPrimary = Color.White,
-    onPrimaryContainer = Color.Black,
-    onSecondary = Color.White,
-    onSecondaryContainer = Color.Black,
-    onSurface = Color.White,
-    onSurfaceVariant = Color.White,
-    onBackground = Color.White,
+    background = Color(0xFF121212),
+    onPrimary = Color(0xFF3700B3),
+    onPrimaryContainer = Color(0xFFFFFFFF),
+    onSecondary = Color(0xFF000000),
+    onSecondaryContainer = Color(0xFFBB86FC),
+    onSurface = Color(0xFFFFFFFF),
+    onSurfaceVariant = Color(0xFFFFFFFF),
+    onBackground = Color(0xFFFFFFFF),
     error = Color(0xFFCF6679),
-    onError = Color.White,
-    onErrorContainer = Color(0xFFB00020), // Provide a value for errorContainer
-    inverseOnSurface = Color.White,
-    inversePrimary = Color.White,
-    inverseSurface = Color.Black,
-    onTertiary = Color.White,
-    onTertiaryContainer = Color.Black,
+    onError = Color(0xFF000000),
+    onErrorContainer = Color(0xFFB00020),
+    inverseOnSurface = Color(0xFF000000),
+    inversePrimary = Color(0xFF6200EE),
+    inverseSurface = Color(0xFFECECEC),
+    onTertiary = Color(0xFF000000),
+    onTertiaryContainer = Color(0xFFBB86FC),
     outline = Color(0xFFE0E0E0),
     outlineVariant = Color(0xFF757575),
     scrim = Color(0x99000000),
     tertiary = Color(0xFF03A9F4),
-    tertiaryContainer = Color(0xFFB3E5FC)
+    tertiaryContainer = Color(0xFF018786)
 )
 
 @Composable
@@ -76,43 +76,13 @@ fun DataSurveyTheme(
     content: @Composable () -> Unit
 ) {
     val colors = if (darkTheme) {
-        DarkColorPalette
+        LightColorPalette
     } else {
         LightColorPalette
     }
 
     MaterialTheme(
-        colorScheme = ColorScheme(
-            primary = colors.primary,
-            primaryContainer = colors.primaryContainer,
-            secondary = colors.secondary,
-            secondaryContainer = colors.secondaryContainer,
-            surface = colors.surface,
-            surfaceTint = colors.surfaceTint,
-            surfaceVariant = colors.surfaceVariant,
-            background = colors.background,
-            onPrimary = colors.onPrimary,
-            onPrimaryContainer = colors.onPrimaryContainer,
-            onSecondary = colors.onSecondary,
-            onSecondaryContainer = colors.onSecondaryContainer,
-            onSurface = colors.onSurface,
-            onSurfaceVariant = colors.onSurfaceVariant,
-            onBackground = colors.onBackground,
-            error = colors.error,
-            onError = colors.onError,
-            onErrorContainer = colors.onErrorContainer,
-            errorContainer = colors.errorContainer,
-            inverseOnSurface = colors.inverseOnSurface,
-            inversePrimary = colors.inversePrimary,
-            inverseSurface = colors.inverseSurface,
-            onTertiary = colors.onTertiary,
-            onTertiaryContainer = colors.onTertiaryContainer,
-            outline = colors.outline,
-            outlineVariant = colors.outlineVariant,
-            scrim = colors.scrim,
-            tertiary = colors.tertiary,
-            tertiaryContainer = colors.tertiaryContainer
-        ),
+        colorScheme = colors,
         content = content
     )
 }

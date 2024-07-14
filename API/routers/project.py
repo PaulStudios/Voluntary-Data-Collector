@@ -1,18 +1,16 @@
+import json
 import logging
 import random
 import uuid
+from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Form, Request
-from fastapi import Body
+from fastapi import APIRouter, Depends, HTTPException, Form, Request, Body
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from fastapi.templating import Jinja2Templates
-from auth import get_current_active_user
 from database import database, get_db
-from models import Project
-from models import User
-from schemas import ProjectBase
-from schemas import UserData
+from models import Project, User, UserData
+from schemas import ProjectBase, UserData as UserDataSchema
 
 router = APIRouter(prefix="/project", tags=["Project"])
 templates = Jinja2Templates(directory="templates")
@@ -20,16 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 def generate_unique_project_id(db: Session) -> int:
-    """Generate a unique 6-digit project ID."""
     while True:
         project_id = random.randint(100000, 999999)
         if not db.query(Project).filter(Project.id == project_id).first():
             return project_id
 
 
-@router.get("/", response_class=HTMLResponse)
+@router.get("/", response_class=HTMLResponse, summary="List all projects and form to create new project.")
 async def read_projects(request: Request, db: Session = Depends(get_db)):
-    """Render the project index page."""
     projects = db.query(Project).all()
     return templates.TemplateResponse("project_index.html", {"request": request, "projects": projects})
 
@@ -40,9 +36,7 @@ async def create_project(
         project_description: str = Form(...),
         db: Session = Depends(get_db)
 ):
-    """Create a new project."""
     project_id_new = generate_unique_project_id(db)
-    print(project_id_new)
     query = """
     INSERT INTO projects (id, project_name, project_description) 
     VALUES (:project_id_new, :project_name, :project_description) 
@@ -55,20 +49,67 @@ async def create_project(
     return {"id": project_id, "project_name": project_name, "project_description": project_description}
 
 
-@router.get("/{project_id}/user_data/{user_id}", summary="Retrieve user data for a project")
-async def get_user_data(project_id: int, user_id: int, upload_id: Optional[str] = None,
-                        current_user: User = Depends(get_current_active_user)):
-    """Retrieve user data for a specific project and user. Optionally filter by upload ID."""
+@router.get("/{project_id}/get_data/{user_id}/{upload_id}",
+            summary="Retrieve user data for a project for a specific upload id")
+async def get_user_data(project_id: int, user_id: int, upload_id: str):
     query = "SELECT * FROM user_data WHERE project_id = :project_id AND user_id = :user_id"
     values = {"project_id": project_id, "user_id": user_id}
-    if upload_id:
-        query += " AND upload_id = :upload_id"
-        values["upload_id"] = upload_id
+    query += " AND upload_id = :upload_id"
+    values["upload_id"] = upload_id
     data = await database.fetch_all(query=query, values=values)
     if not data:
         raise HTTPException(status_code=404, detail="No data found")
     logger.info(f"Data retrieved for project {project_id}, user {user_id}, upload_id {upload_id}")
-    return {"data": data}
+    return data
+
+
+@router.get("/{project_id}/get_data/{user_id}", summary="Retrieve user data list for a project")
+async def get_user_data(project_id: int, user_id: int):
+    query = "SELECT * FROM user_data WHERE project_id = :project_id AND user_id = :user_id"
+    values = {"project_id": project_id, "user_id": user_id}
+    data = await database.fetch_all(query=query, values=values)
+    if not data:
+        raise HTTPException(status_code=404, detail="No data found")
+    logger.info(f"Data retrieved for project {project_id}, user {user_id}")
+    records = data
+    # Dictionary to store the latest timestamp for each upload
+    latest_timestamps = {}
+    # Iterate through each record
+    for record in records:
+        user_id = record['upload_id']
+        timestamp = datetime.strptime(record['timestamp'], '%Y-%m-%d %H:%M:%S')
+        # Update the latest timestamp for the user
+        if user_id not in latest_timestamps or timestamp > latest_timestamps[user_id]:
+            latest_timestamps[user_id] = timestamp
+    # unique upload ids with their latest timestamps
+    result = [{"upload_id": user_id, "latest_timestamp": latest_timestamps[user_id].strftime('%Y-%m-%d %H:%M:%S')} for
+              user_id in latest_timestamps]
+    return result
+
+
+@router.get("/{project_id}/get_data", summary="Retrieve list of all data for a project")
+async def list_user_data(project_id: int):
+    query = "SELECT * FROM user_data WHERE project_id = :project_id"
+    values = {"project_id": project_id}
+    data = await database.fetch_all(query=query, values=values)
+    if not data:
+        raise HTTPException(status_code=404, detail="Project not found")
+    # Parse JSON data
+    records = data
+    # Dictionary to store the latest timestamp for each user
+    latest_timestamps = {}
+    # Iterate through each record
+    for record in records:
+        user_id = record['user_id']
+        timestamp = datetime.strptime(record['timestamp'], '%Y-%m-%d %H:%M:%S')
+        # Update the latest timestamp for the user
+        if user_id not in latest_timestamps or timestamp > latest_timestamps[user_id]:
+            latest_timestamps[user_id] = timestamp
+    #unique user ids with their latest timestamps
+    result = [{"user_id": user_id, "latest_timestamp": latest_timestamps[user_id].strftime('%Y-%m-%d %H:%M:%S')} for
+              user_id in latest_timestamps]
+    logger.info(f"Data list retrieved for project {project_id}")
+    return result
 
 
 @router.post("/{project_id}/user_data", summary="Upload user data to a project")
@@ -76,25 +117,44 @@ async def upload_user_data(
         project_id: int,
         user_id: int = Form(..., description="ID of the user"),
         upload_id: str = Form(..., description="ID of the upload batch"),
-        user_data: UserData = Body(..., description="User data entries to be uploaded"),
-        current_user: User = Depends(get_current_active_user)
+        user_data: str = Form(..., description="User data entries to be uploaded as a JSON string"),
+        db: Session = Depends(get_db)
 ):
-    """Upload user data to a specific project."""
-    query = "INSERT INTO user_data (user_id, project_id, data_id, longitude, latitude, timestamp, upload_id) VALUES (:user_id, :project_id, :data_id, :longitude, :latitude, :timestamp, :upload_id)"
-    for entry in user_data.entries:
-        data_id = str(uuid.uuid4())
-        values = {
-            "user_id": user_id,
-            "project_id": project_id,
-            "data_id": data_id,
-            "longitude": entry.longitude,
-            "latitude": entry.latitude,
-            "timestamp": entry.timestamp,
-            "upload_id": upload_id
-        }
-        await database.execute(query=query, values=values)
-    logger.info(f"User data uploaded for project {project_id}, user {user_id}, upload_id {upload_id}")
-    return {"message": "User data uploaded successfully"}
+    try:
+        # Parse the user_data JSON string
+        user_data_dict = json.loads(user_data)
+        validated_user_data = UserDataSchema(**user_data_dict)
+
+        # Your existing logic here
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            user = User(id=user_id)
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            logger.info(f"Created new user with ID {user_id}")
+
+        query = "INSERT INTO user_data (user_id, project_id, data_id, longitude, latitude, timestamp, upload_id) VALUES (:user_id, :project_id, :data_id, :longitude, :latitude, :timestamp, :upload_id)"
+        for entry in validated_user_data.entries:
+            data_id = str(uuid.uuid4())
+            values = {
+                "user_id": user_id,
+                "project_id": project_id,
+                "data_id": data_id,
+                "longitude": entry.longitude,
+                "latitude": entry.latitude,
+                "timestamp": entry.timestamp,
+                "upload_id": upload_id
+            }
+            await database.execute(query=query, values=values)
+
+        logger.info(f"User data uploaded for project {project_id}, user {user_id}, upload_id {upload_id}")
+        return {
+            "message": f"User data uploaded successfully for project {project_id}, user {user_id}, upload_id {upload_id}"}
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in user_data")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/{project_id}", summary="Retrieve project data for a project")

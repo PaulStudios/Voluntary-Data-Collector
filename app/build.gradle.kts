@@ -16,10 +16,10 @@ android {
 
     defaultConfig {
         applicationId = "org.paulstudios.datasurvey"
-        minSdk = 24
+        minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.6"
+        versionCode = 7
+        versionName = "0.6.9-beta"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -71,6 +71,10 @@ dependencies {
     implementation(libs.androidx.room.runtime.android)
     implementation(libs.androidx.monitor)
     implementation(libs.androidx.junit.ktx)
+    implementation(libs.androidx.ui.android)
+    implementation(libs.androidx.runtime.livedata)
+    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.datastore.core)
     testImplementation(libs.junit.junit)
     androidTestImplementation(libs.junit.junit)
 

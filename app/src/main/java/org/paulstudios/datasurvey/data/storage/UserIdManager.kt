@@ -1,21 +1,46 @@
 package org.paulstudios.datasurvey.data.storage
 
 import android.content.Context
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import java.util.*
 
-class UserIdManager(private val context: Context) {
-    private val preferences = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-    fun getUserId(): String {
-        var userId = preferences.getString("user_id", null)
-        if (userId == null) {
-            userId = generateRandomUserId()
-            preferences.edit().putString("user_id", userId).apply()
+class UserIdManager(private val context: Context) {
+    private val USER_ID_KEY = stringPreferencesKey("user_id")
+    private val PROJECT_ID_KEY = stringPreferencesKey("project_id")
+
+    suspend fun getUserId(): String {
+        val userId = context.dataStore.data.map { preferences ->
+            preferences[USER_ID_KEY] ?: ""
+        }.first()
+
+        if (userId.isEmpty()) {
+            val newUserId = UUID.randomUUID().toString()
+            context.dataStore.edit { preferences ->
+                preferences[USER_ID_KEY] = newUserId
+            }
+            return newUserId
         }
+
         return userId
     }
 
-    private fun generateRandomUserId(): String {
-        return (1..15).map { (0..9).random() }.joinToString("")
+    suspend fun saveProjectId(projectId: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PROJECT_ID_KEY] = projectId
+        }
+    }
+
+    suspend fun getProjectId(): String? {
+        return context.dataStore.data.map { preferences ->
+            preferences[PROJECT_ID_KEY]
+        }.first()
     }
 }

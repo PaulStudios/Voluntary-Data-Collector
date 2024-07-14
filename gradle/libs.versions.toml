@@ -17,6 +17,8 @@ appcompatVersion = "1.6.1"
 composeBomVersion = "2023.01.00"
 converterGson = "2.9.0"
 coreKtxVersion = "1.10.1"
+datastoreCore = "1.1.1"
+datastorePreferences = "1.1.1"
 firebaseAnalyticsKtx = "22.0.2"
 firebaseAuthKtx = "23.0.0"
 firebaseBom = "33.1.1"
@@ -56,6 +58,8 @@ playServicesLocation = "21.3.0"
 playServicesLocationVersion = "21.0.1"
 retrofit = "2.9.0"
 roomRuntime = "2.6.1"
+securityCrypto = "1.1.0-alpha06"
+tinkAndroid = "1.8.0"
 workRuntimeKtx = "2.9.0"
 roomCompiler = "2.6.1"
 roomCommon = "2.6.1"
@@ -66,6 +70,13 @@ roomRuntimeAndroid = "2.7.0-alpha04"
 monitor = "1.7.1"
 junitJunit = "4.12"
 junitKtx = "1.2.1"
+uiAndroid = "1.6.8"
+securityCryptoKtx = "1.0.0"
+runtimeLivedata = "1.6.8"
+firebaseFirestoreKtx = "25.0.0"
+datastoreCoreAndroid = "1.1.1"
+datastorePreferencesCoreJvm = "1.1.1"
+datastoreCoreJvm = "1.1.1"
 
 [libraries]
 accompanist-navigation-animation = { module = "com.google.accompanist:accompanist-navigation-animation", version.ref = "accompanistNavigationAnimation" }
@@ -79,6 +90,8 @@ androidx-compose-bom-v20230100 = { module = "androidx.compose:compose-bom", vers
 androidx-compose-material3-material3 = { module = "androidx.compose.material3:material3" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-ktx-v1101 = { module = "androidx.core:core-ktx", version.ref = "coreKtxVersion" }
+androidx-datastore-core = { module = "androidx.datastore:datastore-core", version.ref = "datastoreCore" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastorePreferences" }
 androidx-lifecycle-runtime-ktx-v231 = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycleRuntimeKtxVersion" }
 androidx-lifecycle-runtime-ktx-v240 = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtxVersion" }
 androidx-lifecycle-runtime-ktx-v261 = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycleRuntimeKtx" }
@@ -98,6 +111,7 @@ androidx-navigation-ui = { module = "androidx.navigation:navigation-ui", version
 androidx-navigation-ui-ktx = { module = "androidx.navigation:navigation-ui-ktx", version.ref = "navigationFragment" }
 androidx-navigation-ui-ktx-v253 = { module = "androidx.navigation:navigation-ui-ktx", version.ref = "navigationUiKtx" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
+androidx-security-crypto = { module = "androidx.security:security-crypto", version.ref = "securityCrypto" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtx" }
 androidx-work-runtime-ktx-v281 = { module = "androidx.work:work-runtime-ktx", version.ref = "workRuntimeKtxVersion" }
 annotations = { module = "org.jetbrains:annotations", version.ref = "annotations" }
@@ -145,6 +159,7 @@ retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomCompiler" }
 androidx-room-common = { group = "androidx.room", name = "room-common", version.ref = "roomCommon" }
 androidx-material3-android = { group = "androidx.compose.material3", name = "material3-android", version.ref = "material3Android" }
+tink-android = { module = "com.google.crypto.tink:tink-android", version.ref = "tinkAndroid" }
 ui = { module = "androidx.compose.ui:ui" }
 ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
 ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
@@ -155,6 +170,13 @@ androidx-room-runtime-android = { group = "androidx.room", name = "room-runtime-
 androidx-monitor = { group = "androidx.test", name = "monitor", version.ref = "monitor" }
 junit-junit = { group = "junit", name = "junit", version.ref = "junitJunit" }
 androidx-junit-ktx = { group = "androidx.test.ext", name = "junit-ktx", version.ref = "junitKtx" }
+androidx-ui-android = { group = "androidx.compose.ui", name = "ui-android", version.ref = "uiAndroid" }
+androidx-security-crypto-ktx = { group = "androidx.security", name = "security-crypto-ktx", version.ref = "securityCryptoKtx" }
+androidx-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtimeLivedata" }
+firebase-firestore-ktx = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestoreKtx" }
+androidx-datastore-core-android = { group = "androidx.datastore", name = "datastore-core-android", version.ref = "datastoreCoreAndroid" }
+androidx-datastore-preferences-core-jvm = { group = "androidx.datastore", name = "datastore-preferences-core-jvm", version.ref = "datastorePreferencesCoreJvm" }
+androidx-datastore-core-jvm = { group = "androidx.datastore", name = "datastore-core-jvm", version.ref = "datastoreCoreJvm" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

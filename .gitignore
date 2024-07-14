@@ -47,3 +47,4 @@ google-services.json
 
 # Android Profiling
 *.hprof
+/API/sql_app.db
