@@ -41,6 +41,7 @@ composeBom = "2024.04.01"
 appcompat = "1.7.0"
 lifecycleRuntimeKtxVersion = "2.4.0"
 lifecycleViewmodelCompose = "2.8.3"
+lifecycleViewmodelComposeVersion = "2.6.1"
 material = "1.12.0"
 activity = "1.9.0"
 constraintlayout = "2.1.4"
@@ -54,6 +55,7 @@ navigationRuntimeKtx = "2.7.7"
 navigationCompose = "2.7.7"
 navigationTesting = "2.5.3"
 navigationUiKtx = "2.5.3"
+playServicesAuth = "21.2.0"
 playServicesLocation = "21.3.0"
 playServicesLocationVersion = "21.0.1"
 retrofit = "2.9.0"
@@ -96,6 +98,7 @@ androidx-lifecycle-runtime-ktx-v231 = { module = "androidx.lifecycle:lifecycle-r
 androidx-lifecycle-runtime-ktx-v240 = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtxVersion" }
 androidx-lifecycle-runtime-ktx-v261 = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycleRuntimeKtx" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
+androidx-lifecycle-viewmodel-compose-v261 = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelComposeVersion" }
 androidx-material3-v100 = { module = "androidx.compose.material3:material3", version.ref = "androidxMaterial3Version" }
 androidx-material3-v100alpha15 = { module = "androidx.compose.material3:material3", version.ref = "androidxMaterial3" }
 androidx-navigation-compose-v240alpha10 = { module = "androidx.navigation:navigation-compose", version.ref = "navigationComposeVersion" }
@@ -152,6 +155,7 @@ androidx-navigation-runtime-ktx = { group = "androidx.navigation", name = "navig
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 material-v190 = { module = "com.google.android.material:material", version.ref = "materialVersion" }
 material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 play-services-location = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocation" }
 play-services-location-v1800 = { module = "com.google.android.gms:play-services-location", version.ref = "googlePlayServicesLocation" }
 play-services-location-v2101 = { module = "com.google.android.gms:play-services-location", version.ref = "playServicesLocationVersion" }

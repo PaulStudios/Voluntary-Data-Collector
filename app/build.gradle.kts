@@ -18,8 +18,8 @@ android {
         applicationId = "org.paulstudios.datasurvey"
         minSdk = 29
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.7.2-alpha"
+        versionCode = 13
+        versionName = "0.7.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -77,6 +77,7 @@ dependencies {
     implementation(libs.androidx.datastore.core)
     testImplementation(libs.junit.junit)
     androidTestImplementation(libs.junit.junit)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
 
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
@@ -103,6 +104,8 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx.v281)
     implementation(libs.play.services.location.v2101)
     implementation(libs.kotlinx.coroutines.android.v172)
+    implementation(libs.play.services.auth)
+
 
     implementation(libs.kotlinx.coroutines.play.services)
 

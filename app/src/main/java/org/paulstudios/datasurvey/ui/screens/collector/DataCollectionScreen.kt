@@ -23,8 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import org.paulstudios.datasurvey.data.collector.GPSDataCollection
-import org.paulstudios.datasurvey.data.collector.UploadStatus
+import org.paulstudios.datasurvey.viewmodels.GPSDataCollection
+import org.paulstudios.datasurvey.viewmodels.UploadStatus
 
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @OptIn(ExperimentalMaterial3Api::class)

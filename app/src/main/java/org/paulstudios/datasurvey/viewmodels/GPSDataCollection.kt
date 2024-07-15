@@ -1,13 +1,11 @@
-package org.paulstudios.datasurvey.data.collector
+package org.paulstudios.datasurvey.viewmodels
 
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.AndroidViewModel
@@ -19,7 +17,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import okhttp3.MediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -30,11 +27,8 @@ import org.paulstudios.datasurvey.data.models.GPSData
 import org.paulstudios.datasurvey.data.models.GPSDataList
 import org.paulstudios.datasurvey.data.storage.JsonStorage
 import org.paulstudios.datasurvey.network.LocationService
-import org.paulstudios.datasurvey.network.RetrofitInstance
-import org.paulstudios.datasurvey.utils.BatteryOptimizationUtil
 import org.paulstudios.datasurvey.data.storage.UserIdManager
-import retrofit2.HttpException
-import java.io.IOException
+import org.paulstudios.datasurvey.utils.BatteryOptimizationUtil
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
@@ -121,7 +115,8 @@ class GPSDataCollection(application: Application) : AndroidViewModel(application
     }
 
     fun updateBatteryOptimizationStatus(context: Context) {
-        _batteryOptimizationStatus.value = BatteryOptimizationUtil.isIgnoringBatteryOptimizations(context)
+        _batteryOptimizationStatus.value =
+            BatteryOptimizationUtil.isIgnoringBatteryOptimizations(context)
     }
 }
 

@@ -20,8 +20,10 @@ import org.paulstudios.datasurvey.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
-    email: MutableState<String>,
-    password: MutableState<String>,
+    email: String,
+    onEmailChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
     buttonText: String,
     onSubmit: () -> Unit,
     secondaryButtonText: String,
@@ -33,11 +35,17 @@ fun AuthScreen(
     onGoogleLogin: () -> Unit
 ) {
     var emailError by remember { mutableStateOf("") }
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        if (isLoading) {
-            CircularProgressIndicator()
-        } else {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = Alignment.Center
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -61,9 +69,9 @@ fun AuthScreen(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 OutlinedTextField(
-                    value = email.value,
+                    value = email,
                     onValueChange = {
-                        email.value = it
+                        onEmailChange(it)
                         emailError = if (isValidEmail(it)) "" else "Invalid Email"
                     },
                     label = { Text("Email") },
@@ -79,8 +87,8 @@ fun AuthScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
-                    value = password.value,
-                    onValueChange = { password.value = it },
+                    value = password,
+                    onValueChange = onPasswordChange,
                     label = { Text("Password") },
                     leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
                     visualTransformation = PasswordVisualTransformation(),
@@ -93,29 +101,12 @@ fun AuthScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Button(
-                    onClick = {
-                        if (isValidEmail(email.value)) {
-                            onSubmit()
-                        } else {
-                            emailError = "Invalid Email"
-                        }
-                    },
+                    onClick = onSubmit,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     enabled = !isLoading
                 ) {
                     Text(buttonText)
-                }
-
-                if (errorMessage.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = errorMessage,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
-                            .padding(8.dp)
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -126,16 +117,31 @@ fun AuthScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Google Login Button
                 Button(onClick = onGoogleLogin, modifier = Modifier.fillMaxWidth()) {
                     Text("Sign in with Google")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // GitHub Login Button
                 Button(onClick = onGithubLogin, modifier = Modifier.fillMaxWidth()) {
                     Text("Sign in with GitHub")
+                }
+            }
+
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .align(Alignment.Center)
+                )
+            }
+
+            LaunchedEffect(errorMessage) {
+                if (errorMessage.isNotEmpty()) {
+                    snackbarHostState.showSnackbar(
+                        message = errorMessage,
+                        duration = SnackbarDuration.Long
+                    )
                 }
             }
         }
