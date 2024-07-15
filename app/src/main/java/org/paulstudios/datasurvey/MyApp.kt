@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import com.google.accompanist.navigation.animation.AnimatedNavHost
@@ -21,7 +20,9 @@ import org.paulstudios.datasurvey.viewmodels.AuthViewModel
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun MyApp(navController: NavHostController, context: Context) {
-    val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.Factory(context.applicationContext as android.app.Application))
+    val authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModel.Factory(context.applicationContext as android.app.Application)
+    )
 
     AnimatedNavHost(navController = navController, startDestination = Screen.Login.route) {
         composable(Screen.Login.route) {
