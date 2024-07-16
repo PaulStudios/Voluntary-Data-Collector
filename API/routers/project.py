@@ -4,6 +4,8 @@ import random
 import uuid
 from datetime import datetime
 from typing import Optional
+
+from asyncpg import ForeignKeyViolationError
 from fastapi import APIRouter, Depends, HTTPException, Form, Request, Body
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
@@ -51,7 +53,7 @@ async def create_project(
 
 @router.get("/{project_id}/get_data/{user_id}/{upload_id}",
             summary="Retrieve user data for a project for a specific upload id")
-async def get_user_data(project_id: int, user_id: int, upload_id: str):
+async def get_upload_data(project_id: int, user_id: int, upload_id: str):
     query = "SELECT * FROM user_data WHERE project_id = :project_id AND user_id = :user_id"
     values = {"project_id": project_id, "user_id": user_id}
     query += " AND upload_id = :upload_id"
@@ -77,7 +79,7 @@ async def get_user_data(project_id: int, user_id: int):
     # Iterate through each record
     for record in records:
         user_id = record['upload_id']
-        timestamp = datetime.strptime(record['timestamp'], '%Y-%m-%d %H:%M:%S')
+        timestamp = record['timestamp']
         # Update the latest timestamp for the user
         if user_id not in latest_timestamps or timestamp > latest_timestamps[user_id]:
             latest_timestamps[user_id] = timestamp
@@ -101,11 +103,11 @@ async def list_user_data(project_id: int):
     # Iterate through each record
     for record in records:
         user_id = record['user_id']
-        timestamp = datetime.strptime(record['timestamp'], '%Y-%m-%d %H:%M:%S')
+        timestamp = record['timestamp']
         # Update the latest timestamp for the user
         if user_id not in latest_timestamps or timestamp > latest_timestamps[user_id]:
             latest_timestamps[user_id] = timestamp
-    #unique user ids with their latest timestamps
+    # unique user ids with their latest timestamps
     result = [{"user_id": user_id, "latest_timestamp": latest_timestamps[user_id].strftime('%Y-%m-%d %H:%M:%S')} for
               user_id in latest_timestamps]
     logger.info(f"Data list retrieved for project {project_id}")
@@ -143,7 +145,7 @@ async def upload_user_data(
                 "data_id": data_id,
                 "longitude": entry.longitude,
                 "latitude": entry.latitude,
-                "timestamp": entry.timestamp,
+                "timestamp": datetime.fromisoformat(entry.timestamp),
                 "upload_id": upload_id
             }
             await database.execute(query=query, values=values)
@@ -153,6 +155,8 @@ async def upload_user_data(
             "message": f"User data uploaded successfully for project {project_id}, user {user_id}, upload_id {upload_id}"}
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON in user_data")
+    except ForeignKeyViolationError:
+        raise HTTPException(status_code=400, detail="Project does not exist")
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

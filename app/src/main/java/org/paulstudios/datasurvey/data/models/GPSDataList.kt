@@ -5,5 +5,6 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class GPSDataList(
     val userId: String,
-    val data: List<GPSData>
+    val data: List<GPSData>,
+    val fileName: String
 )

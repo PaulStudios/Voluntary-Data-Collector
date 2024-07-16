@@ -18,8 +18,8 @@ android {
         applicationId = "org.paulstudios.datasurvey"
         minSdk = 29
         targetSdk = 34
-        versionCode = 13
-        versionName = "0.7.6"
+        versionCode = 16
+        versionName = "0.7.9"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

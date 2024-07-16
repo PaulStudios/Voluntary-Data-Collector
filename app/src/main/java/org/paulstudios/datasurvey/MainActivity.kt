@@ -23,10 +23,12 @@ import org.paulstudios.datasurvey.data.models.Screen
 import org.paulstudios.datasurvey.ui.theme.DataSurveyTheme
 import org.paulstudios.datasurvey.viewmodels.AuthState
 import org.paulstudios.datasurvey.viewmodels.AuthViewModel
+import org.paulstudios.datasurvey.viewmodels.ServerStatusViewModel
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
     private lateinit var authViewModel: AuthViewModel
+    private lateinit var serverStatusViewModel: ServerStatusViewModel
 
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     @OptIn(ExperimentalAnimationApi::class)
@@ -34,17 +36,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         FirebaseApp.initializeApp(this)
         authViewModel = ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(application))[AuthViewModel::class.java]
-
+        serverStatusViewModel = ViewModelProvider(this)[ServerStatusViewModel::class.java]
         setContent {
             navController = rememberAnimatedNavController()
             LaunchedEffect(Unit) {
                 checkAndNavigateIfLoggedIn()
             }
             DataSurveyTheme {
-                MyApp(navController, this@MainActivity)
+                MyApp(navController, this)
             }
         }
-
+        lifecycle.addObserver(serverStatusViewModel)
         observeAuthState()
     }
 
@@ -105,5 +107,10 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         const val RC_SIGN_IN = 9001
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        lifecycle.removeObserver(serverStatusViewModel)
     }
 }

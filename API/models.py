@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, DateTime
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -19,10 +19,10 @@ class UserData(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
-    data_id = Column(String, index=True)
-    longitude = Column(String, nullable=False)
-    latitude = Column(String, nullable=False)
-    timestamp = Column(String, nullable=False)
+    data_id = Column(String, index=True, unique=True)
+    longitude = Column(Float, nullable=False)
+    latitude = Column(Float, nullable=False)
+    timestamp = Column(DateTime, nullable=False)
     upload_id = Column(String, nullable=False)
     user = relationship("User", back_populates="data")
     project = relationship("Project", back_populates="data")

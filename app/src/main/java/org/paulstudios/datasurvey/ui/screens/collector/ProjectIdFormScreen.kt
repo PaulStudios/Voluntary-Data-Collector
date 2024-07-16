@@ -1,27 +1,36 @@
 package org.paulstudios.datasurvey.ui.screens.collector
 
 import android.util.Log
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import org.paulstudios.datasurvey.network.RetrofitInstance
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.paulstudios.datasurvey.data.models.Screen
 import org.paulstudios.datasurvey.data.storage.UserIdManager
+import org.paulstudios.datasurvey.viewmodels.ServerStatusViewModel
 import retrofit2.HttpException
 import java.io.IOException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProjectIdFormScreen(navController: NavController) {
+fun ProjectIdFormScreen(navController: NavHostController, serverStatusViewModel: ServerStatusViewModel) {
+    val serverStatus by serverStatusViewModel.serverStatus.collectAsState()
     var projectId by remember { mutableStateOf(TextFieldValue("")) }
     var errorMessage by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
@@ -34,16 +43,28 @@ fun ProjectIdFormScreen(navController: NavController) {
     val context = LocalContext.current
     val userIdManager = remember { UserIdManager(context) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(key1 = true) {
         userIdManager.getProjectId()?.let {
+            navController.navigate(Screen.DataCollection.route) {
+                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+            }
             projectId = TextFieldValue(it)
+        }
+        serverStatusViewModel.statusMessage.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
         }
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Enter Project ID") }
+                title = { Text("Enter Project ID") },
+                actions = {
+                    ServerStatusIndicator(
+                        isOnline = serverStatus,
+                        onClick = { serverStatusViewModel.showStatusMessage() }
+                    )
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -97,7 +118,7 @@ fun ProjectIdFormScreen(navController: NavController) {
                                             Log.d(logTag, "Project ID ${projectId.text} validated successfully.")
                                             // Save the project ID
                                             userIdManager.saveProjectId(projectId.text)
-                                            navController.navigate("data_collection")
+                                            navController.navigate(Screen.DataCollection.route)
                                             success = true
                                         } else {
                                             errorMessage = handleHttpError(response.code())
@@ -147,4 +168,20 @@ fun handleHttpError(code: Int): String {
         500 -> "Server error. Please try again later."
         else -> "An unknown error occurred. Please try again."
     }
+}
+
+@Composable
+fun ServerStatusIndicator(
+    isOnline: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .background(
+                color = if (isOnline) Color.Green else Color.Red,
+                shape = CircleShape
+            )
+            .clickable { onClick() }
+    )
 }

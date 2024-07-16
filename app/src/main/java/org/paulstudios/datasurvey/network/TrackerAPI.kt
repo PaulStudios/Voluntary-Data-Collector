@@ -23,5 +23,8 @@ interface TrackerAPI {
         @Part("upload_id") uploadId: RequestBody,
         @Part("user_data") userData: RequestBody
     ): Response<Unit>
+
+    @GET("/status")
+    suspend fun getServerStatus(): Response<Unit>
 }
 

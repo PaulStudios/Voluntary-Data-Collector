@@ -15,6 +15,7 @@ import org.paulstudios.datasurvey.ui.screens.auth.RegisterScreen
 import org.paulstudios.datasurvey.ui.screens.collector.DataCollectionScreen
 import org.paulstudios.datasurvey.ui.screens.collector.ProjectIdFormScreen
 import org.paulstudios.datasurvey.viewmodels.AuthViewModel
+import org.paulstudios.datasurvey.viewmodels.ServerStatusViewModel
 
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @OptIn(ExperimentalAnimationApi::class)
@@ -23,6 +24,7 @@ fun MyApp(navController: NavHostController, context: Context) {
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModel.Factory(context.applicationContext as android.app.Application)
     )
+    val serverStatusViewModel: ServerStatusViewModel = viewModel()
 
     AnimatedNavHost(navController = navController, startDestination = Screen.Login.route) {
         composable(Screen.Login.route) {
@@ -32,10 +34,10 @@ fun MyApp(navController: NavHostController, context: Context) {
             RegisterScreen(navController = navController, viewModel = authViewModel)
         }
         composable(Screen.ProjectIdForm.route) {
-            ProjectIdFormScreen(navController = navController)
+            ProjectIdFormScreen(navController = navController, serverStatusViewModel = serverStatusViewModel)
         }
         composable(Screen.DataCollection.route) {
-            DataCollectionScreen()
+            DataCollectionScreen(serverStatusViewModel = serverStatusViewModel, navController = navController)
         }
     }
 }

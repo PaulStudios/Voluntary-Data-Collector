@@ -7,6 +7,8 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,25 +16,40 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import kotlinx.coroutines.launch
+import org.paulstudios.datasurvey.data.models.Screen
+import org.paulstudios.datasurvey.data.storage.JsonStorage
+import org.paulstudios.datasurvey.data.storage.UserIdManager
 import org.paulstudios.datasurvey.viewmodels.GPSDataCollection
+import org.paulstudios.datasurvey.viewmodels.ServerStatusViewModel
 import org.paulstudios.datasurvey.viewmodels.UploadStatus
 
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
+fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel(), serverStatusViewModel: ServerStatusViewModel, navController: NavHostController) {
+    val serverStatus by serverStatusViewModel.serverStatus.collectAsState()
     val context = LocalContext.current
     var showPermissionDialog by remember { mutableStateOf(false) }
     var permissionDialogType by remember { mutableStateOf<PermissionDialogType>(PermissionDialogType.Initial) }
+    var isLoading by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    val uploadStatus by viewModel.uploadStatus.collectAsState()
+    val uploadProgress by viewModel.uploadProgress.collectAsState()
 
     val requiredPermissions = remember {
         mutableListOf(
@@ -61,20 +78,41 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
     val status by viewModel.status.collectAsState()
     val storedData by viewModel.storedData.collectAsState()
     val error by viewModel.error.collectAsState()
-    val batteryOptimizationStatus by viewModel.batteryOptimizationStatus.observeAsState(initial = false)
-    var permissionsGranted by remember { mutableStateOf(false) }
-
-    var showPermissionDeniedDialog by remember { mutableStateOf(false) }
-    var showBatteryOptimizationDialog by remember { mutableStateOf(false) }
-
-    val uploadStatus by viewModel.uploadStatus.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var showExitConfirmationDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(key1 = true) {
+        if (storedData.isNotEmpty()) {
+            isLoading = false
+        }
+        serverStatusViewModel.statusMessage.collect { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("GPS Data Collection") }
+                title = { Text("GPS Data Collection") },
+                actions = {
+                    ServerStatusIndicator(
+                        isOnline = serverStatus,
+                        onClick = { serverStatusViewModel.showStatusMessage() }
+                    )
+                    IconButton(
+                        onClick = {
+                            showExitConfirmationDialog = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ExitToApp,
+                            contentDescription = "Exit"
+                        )
+                    }
+                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -103,8 +141,21 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
                     Text("Stop Data Collection")
                 }
                 Spacer(modifier = Modifier.height(20.dp))
-                Button(onClick = { viewModel.loadStoredData() }) {
-                    Text("Load Stored Data")
+                Button(
+                    onClick = {
+                        isLoading = true
+                        coroutineScope.launch {
+                            viewModel.loadStoredData()
+                            isLoading = false
+                        }
+                    },
+                    enabled = !isLoading
+                ) {
+                    if (isLoading) {
+                        Text("Loading...")
+                    } else {
+                        Text("Load Stored Data")
+                    }
                 }
                 Spacer(modifier = Modifier.height(20.dp))
                 Button(
@@ -118,19 +169,36 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
                 }
                 Spacer(modifier = Modifier.height(20.dp))
                 when (uploadStatus) {
-                    is UploadStatus.Uploading -> CircularProgressIndicator()
+                    is UploadStatus.Uploading -> {
+                        LinearProgressIndicator(
+                            progress = uploadProgress,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text("Uploading: ${(uploadProgress * 100).toInt()}%")
+                    }
                     is UploadStatus.Success -> Text("Upload successful!", color = MaterialTheme.colorScheme.primary)
                     is UploadStatus.Error -> Text("Upload failed. Please try again.", color = MaterialTheme.colorScheme.error)
+                    is UploadStatus.NoData -> Text("No data to upload.", color = MaterialTheme.colorScheme.error)
                     else -> {}
                 }
                 Spacer(modifier = Modifier.height(20.dp))
                 if (storedData.isNotEmpty()) {
                     LazyColumn {
                         items(storedData) { gpsDataList ->
-                            Text("User ID: ${gpsDataList.userId}")
+                            Text(
+                                text = ": Data ID - ${gpsDataList.fileName} :",
+                                fontWeight = FontWeight.Bold
+                            )
                             gpsDataList.data.forEach { gpsData ->
-                                Text("Lat: ${gpsData.latitude}, Lon: ${gpsData.longitude}, Time: ${gpsData.timestamp}")
+                                Text("------------------------------------------------")
+                                Text("Latitude: ${gpsData.latitude}")
+                                Text("Longitude: ${gpsData.longitude}")
+                                Text("Timestamp: ${gpsData.timestamp}")
                             }
+                            Text(
+                                text = "----------------------------------------------",
+                                fontWeight = FontWeight.Bold
+                            )
                             Spacer(modifier = Modifier.height(10.dp))
                         }
                     }
@@ -139,9 +207,37 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel()) {
                     Spacer(modifier = Modifier.height(20.dp))
                     Text(text = "Error: $error", color = MaterialTheme.colorScheme.error)
                 }
+
             }
         }
     )
+    if (showExitConfirmationDialog) {
+        AlertDialog(
+            onDismissRequest = { showExitConfirmationDialog = false },
+            title = { Text("Confirm Exit") },
+            text = { Text("Are you sure you want to exit? This will delete all stored data. Please upload all data before exiting.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showExitConfirmationDialog = false
+                        viewModel.cleanCollector(context)
+                        Log.d("DataCollectionScreen", "Project ID deleted. Exiting Data Collector")
+                        navController.navigate(Screen.ProjectIdForm.route) {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+
+                    }
+                ) {
+                    Text("Exit Anyway")
+                }
+            },
+            dismissButton = {
+                Button(onClick = { showExitConfirmationDialog = false }) {
+                    Text("Go Back")
+                }
+            }
+        )
+    }
 
 if (showPermissionDialog) {
     PermissionDialog(

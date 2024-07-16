@@ -29,11 +29,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import org.paulstudios.datasurvey.R
 import org.paulstudios.datasurvey.data.models.GPSData
+import org.paulstudios.datasurvey.data.models.GPSDataList
 import org.paulstudios.datasurvey.data.storage.JsonStorage
 import org.paulstudios.datasurvey.data.storage.UserIdManager
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.Random
 import java.util.concurrent.TimeUnit
 
 class LocationService : Service() {
@@ -138,7 +140,7 @@ class LocationService : Service() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val userId = userIdManager.getUserId()
-                val gpsDataList = org.paulstudios.datasurvey.data.models.GPSDataList(userId, this@LocationService.gpsDataList)
+                val gpsDataList = GPSDataList(userId, this@LocationService.gpsDataList, generateUniqueFileName())
                 val result = jsonStorage.saveGPSDataList(gpsDataList)
                 if (result.isFailure) {
                     Log.e("LocationService", "Error saving GPS data", result.exceptionOrNull())
@@ -180,4 +182,10 @@ class LocationService : Service() {
         val seconds = TimeUnit.MILLISECONDS.toSeconds(elapsedTime) % 60
         return String.format("%02d:%02d:%02d", hours, minutes, seconds)
     }
+}
+
+private fun generateUniqueFileName(): String {
+    val random = Random()
+    val uniqueNumber = (1..15).map { random.nextInt(10) }.joinToString("")
+    return uniqueNumber
 }

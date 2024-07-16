@@ -1,11 +1,12 @@
 package org.paulstudios.datasurvey.ui.screens.auth
 
 import android.app.Activity
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.google.firebase.auth.*
 import org.paulstudios.datasurvey.MainActivity
 import org.paulstudios.datasurvey.data.models.Screen
 import org.paulstudios.datasurvey.ui.screens.auth.components.AuthScreen

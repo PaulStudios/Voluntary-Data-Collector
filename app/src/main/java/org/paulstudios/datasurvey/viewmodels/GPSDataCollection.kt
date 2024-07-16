@@ -5,18 +5,21 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.util.Log
+import androidx.compose.runtime.remember
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.asFlow
 import androidx.lifecycle.viewModelScope
 import androidx.work.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -28,7 +31,6 @@ import org.paulstudios.datasurvey.data.models.GPSDataList
 import org.paulstudios.datasurvey.data.storage.JsonStorage
 import org.paulstudios.datasurvey.network.LocationService
 import org.paulstudios.datasurvey.data.storage.UserIdManager
-import org.paulstudios.datasurvey.utils.BatteryOptimizationUtil
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
@@ -43,39 +45,55 @@ class GPSDataCollection(application: Application) : AndroidViewModel(application
     private val _storedData = MutableStateFlow<List<GPSDataList>>(emptyList())
     val storedData: StateFlow<List<GPSDataList>> get() = _storedData
 
-    private val _batteryOptimizationStatus = MutableLiveData<Boolean>()
-    val batteryOptimizationStatus: LiveData<Boolean> get() = _batteryOptimizationStatus
-
     private val jsonStorage = JsonStorage(application)
+    private val userIdManager = UserIdManager(application)
 
     private val workManager = WorkManager.getInstance(application)
 
     private val _uploadStatus = MutableStateFlow<UploadStatus>(UploadStatus.Idle)
     val uploadStatus: StateFlow<UploadStatus> = _uploadStatus
 
+    private val _uploadProgress = MutableStateFlow(0f)
+    val uploadProgress: StateFlow<Float> = _uploadProgress
+
     fun uploadData() {
-        _uploadStatus.value = UploadStatus.Uploading
-        val uploadWorkRequest = OneTimeWorkRequestBuilder<DataUploadWorker>()
-            .setBackoffCriteria(
-                BackoffPolicy.LINEAR,
-                WorkRequest.MIN_BACKOFF_MILLIS,
-                TimeUnit.MILLISECONDS
-            )
-            .build()
+        viewModelScope.launch {
+            _uploadStatus.value = UploadStatus.Uploading
+            _uploadProgress.value = 0f
 
-        workManager.enqueue(uploadWorkRequest)
+            val uploadWorkRequest = OneTimeWorkRequestBuilder<DataUploadWorker>()
+                .setBackoffCriteria(
+                    BackoffPolicy.LINEAR,
+                    WorkRequest.MIN_BACKOFF_MILLIS,
+                    TimeUnit.MILLISECONDS
+                )
+                .build()
 
-        workManager.getWorkInfoByIdLiveData(uploadWorkRequest.id)
-            .observeForever { workInfo ->
+            workManager.enqueue(uploadWorkRequest)
+
+            val workInfoLiveData = workManager.getWorkInfoByIdLiveData(uploadWorkRequest.id)
+            workInfoLiveData.asFlow().collect { workInfo ->
                 when (workInfo.state) {
+                    WorkInfo.State.RUNNING -> {
+                        val progress = workInfo.progress.getFloat("progress", 0f)
+                        _uploadProgress.value = progress
+                    }
                     WorkInfo.State.SUCCEEDED -> {
-                        _uploadStatus.value = UploadStatus.Success
-                        loadStoredData() // Refresh the stored data list
+                        val outputData = workInfo.outputData
+                        if (outputData.getString("status") == "NO_DATA") {
+                            _uploadStatus.value = UploadStatus.NoData
+                        } else {
+                            _uploadStatus.value = UploadStatus.Success
+                            loadStoredData()
+                        }
+                        _uploadProgress.value = 1f
                     }
                     WorkInfo.State.FAILED -> _uploadStatus.value = UploadStatus.Error
+                    WorkInfo.State.CANCELLED -> _uploadStatus.value = UploadStatus.Idle
                     else -> {} // Do nothing for other states
                 }
             }
+        }
     }
 
 
@@ -103,20 +121,32 @@ class GPSDataCollection(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun loadStoredData() {
+    fun cleanCollector(context: Context) {
         viewModelScope.launch {
-            val result = jsonStorage.loadAllGPSData()
-            if (result.isSuccess) {
-                _storedData.value = result.getOrThrow()
-            } else {
-                _error.value = "Error loading data: ${result.exceptionOrNull()?.message}"
-            }
+            stopDataCollection(context)
+            jsonStorage.clearAllData()
+            userIdManager.deleteProjectId()
+            _status.value="Cleaning Complete"
+            Log.d("GPSDataCollection", "Cleaned")
         }
     }
 
-    fun updateBatteryOptimizationStatus(context: Context) {
-        _batteryOptimizationStatus.value =
-            BatteryOptimizationUtil.isIgnoringBatteryOptimizations(context)
+    suspend fun loadStoredData(): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val result = jsonStorage.loadAllGPSData()
+                if (result.isSuccess) {
+                    _storedData.value = result.getOrThrow()
+                    true
+                } else {
+                    _error.value = "Error loading data: ${result.exceptionOrNull()?.message}"
+                    false
+                }
+            } catch (e: Exception) {
+                _error.value = "Error loading data: ${e.message}"
+                false
+            }
+        }
     }
 }
 
@@ -132,67 +162,94 @@ class DataUploadWorker(
 
     override suspend fun doWork(): Result {
         return try {
-            val allData = jsonStorage.loadAllGPSData().getOrThrow()
-            val uploadResult = uploadDataInBatches(allData)
-            if (uploadResult) {
-                // Clear all JSON data after successful upload
+            val logEntries = jsonStorage.getLogEntries().getOrThrow()
+            if (logEntries.isEmpty()) {
+                Log.d("DataUploadWorker", "No data to upload")
+                return Result.success(workDataOf("status" to "NO_DATA"))
+            }
+            Log.d("DataUploadWorker", "Uploading ${logEntries.size} files")
+
+            var uploadedFiles = 0
+            for (entry in logEntries) {
+                val fileName = entry["fileName"] ?: continue
+                val result = uploadSingleFile(fileName)
+                if (result) {
+                    uploadedFiles++
+                    val progress = uploadedFiles.toFloat() / logEntries.size
+                    setProgress(workDataOf("progress" to progress))
+                } else {
+                    break
+                }
+            }
+
+            if (uploadedFiles == logEntries.size) {
                 jsonStorage.clearAllData()
-
-                // Show success message to user
                 showNotification("Data Upload Successful", "All data has been uploaded successfully.")
-
                 Result.success()
             } else {
+                showNotification("Data Upload Incomplete", "Some files couldn't be uploaded. The process will retry later.")
                 Result.retry()
             }
         } catch (e: Exception) {
             Log.e("DataUploadWorker", "Error during upload", e)
-
-            // Show error message to user
             showNotification("Data Upload Failed", "There was an error uploading the data. Please try again later.")
-
             Result.failure()
         }
     }
 
-    private suspend fun uploadDataInBatches(allData: List<GPSDataList>): Boolean {
+    private suspend fun uploadSingleFile(fileName: String): Boolean {
         val projectId = userIdManager.getProjectId() ?: run {
             Log.e("DataUploadWorker", "No project ID available")
             return false
         }
 
+        val gpsDataListResult = jsonStorage.loadSingleGPSDataFile(fileName)
+        if (gpsDataListResult.isFailure) {
+            Log.e("DataUploadWorker", "Failed to load file $fileName")
+            return false
+        }
+        val uploadId = UUID.randomUUID().toString()
+        val gpsDataList = gpsDataListResult.getOrThrow()
+        return uploadDataInBatches(listOf(gpsDataList), projectId, uploadId)
+    }
+
+    private suspend fun uploadDataInBatches(allData: List<GPSDataList>, projectId: String, uploadId: String): Boolean {
         for (gpsDataList in allData) {
             val batches = gpsDataList.data.chunked(100)
+            Log.d("DataUploadWorker", "Uploading ${batches.size} batches for user ${gpsDataList.userId} with uploadId $uploadId")
+            val filename = gpsDataList.fileName
             for (batch in batches) {
-                val batchDataList = GPSDataList(gpsDataList.userId, batch)
-                if (!uploadBatch(batchDataList, projectId)) {
+                val batchDataList = GPSDataList(gpsDataList.userId, batch, filename)
+                if (!uploadBatch(batchDataList, projectId, uploadId)) {
                     return false
                 }
             }
         }
-
         return true
     }
 
-    private suspend fun uploadBatch(batchDataList: GPSDataList, projectId: String): Boolean {
+    private suspend fun uploadBatch(batchDataList: GPSDataList, projectId: String, uploadId: String): Boolean {
         var retries = 3
         while (retries > 0) {
             try {
-                val uploadId = UUID.randomUUID().toString()
-                val requestBody = createRequestBody(batchDataList.userId, uploadId, batchDataList.data, projectId)
+                val requestBody = createRequestBody(
+                    batchDataList.userId,
+                    uploadId,
+                    batchDataList.data
+                )
                 val request = createRequest(projectId, requestBody)
 
                 okHttpClient.newCall(request).execute().use { response ->
                     if (response.isSuccessful) {
-                        Log.d("DataUploadWorker", "Batch uploaded successfully for user ${batchDataList.userId}")
+                        Log.d("DataUploadWorker", "Batch uploaded successfully for user ${batchDataList.userId} with uploadId $uploadId")
                         return true
                     } else {
-                        Log.w("DataUploadWorker", "Upload failed with status code: ${response.code()}")
+                        Log.w("DataUploadWorker", "Upload failed with status code: ${response.code()} for uploadId $uploadId")
                         Log.w("DataUploadWorker", "Response body: ${response.body()?.string()}")
                     }
                 }
             } catch (e: Exception) {
-                Log.e("DataUploadWorker", "Error during upload", e)
+                Log.e("DataUploadWorker", "Error during upload for uploadId $uploadId", e)
             }
             retries--
             if (retries > 0) {
@@ -202,7 +259,7 @@ class DataUploadWorker(
         return false
     }
 
-    private fun createRequestBody(userId: String, uploadId: String, data: List<GPSData>, projectId: String): RequestBody {
+    private fun createRequestBody(userId: String, uploadId: String, data: List<GPSData>): RequestBody {
         val userDataJson = JSONObject().apply {
             put("entries", JSONArray().apply {
                 data.forEach { gpsData ->
@@ -237,14 +294,12 @@ class DataUploadWorker(
     private fun showNotification(title: String, message: String) {
         val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                "data_upload_channel",
-                "Data Upload Notifications",
-                NotificationManager.IMPORTANCE_DEFAULT
-            )
-            notificationManager.createNotificationChannel(channel)
-        }
+        val channel = NotificationChannel(
+            "data_upload_channel",
+            "Data Upload Notifications",
+            NotificationManager.IMPORTANCE_DEFAULT
+        )
+        notificationManager.createNotificationChannel(channel)
 
         val notification = NotificationCompat.Builder(applicationContext, "data_upload_channel")
             .setContentTitle(title)
@@ -263,4 +318,5 @@ sealed class UploadStatus {
     object Uploading : UploadStatus()
     object Success : UploadStatus()
     object Error : UploadStatus()
+    object NoData : UploadStatus()
 }

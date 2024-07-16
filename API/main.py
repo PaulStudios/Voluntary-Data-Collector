@@ -1,6 +1,6 @@
 import logging
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from database import database, Base, engine
@@ -46,6 +46,7 @@ async def log_requests(request, call_next):
 async def read_homepage(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-@app.get("/projects", response_class=HTMLResponse, tags=["projects"])
-async def projects_homepage(request: Request):
-    return templates.TemplateResponse("projects_homepage.html", {"request": request})
+@app.get("/status", response_class=PlainTextResponse)
+async def healthcheck(request: Request):
+    return "OK"
+

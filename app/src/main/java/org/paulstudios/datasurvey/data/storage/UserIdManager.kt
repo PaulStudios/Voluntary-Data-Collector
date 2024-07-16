@@ -43,4 +43,10 @@ class UserIdManager(private val context: Context) {
             preferences[PROJECT_ID_KEY]
         }.first()
     }
+
+    suspend fun deleteProjectId() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(PROJECT_ID_KEY)
+        }
+    }
 }

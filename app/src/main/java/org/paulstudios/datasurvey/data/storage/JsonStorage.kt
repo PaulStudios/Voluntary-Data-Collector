@@ -8,6 +8,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.paulstudios.datasurvey.data.models.GPSDataList
 import java.io.File
+import java.io.FileNotFoundException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -17,16 +18,10 @@ class JsonStorage(private val context: Context) {
     private val json = Json { prettyPrint = true }
     private val logFileName = "gpsdatalog.json"
 
-    private fun generateUniqueFileName(): String {
-        val random = Random()
-        val uniqueNumber = (1..15).map { random.nextInt(10) }.joinToString("")
-        return "gpsdata_$uniqueNumber.json"
-    }
-
     suspend fun saveGPSDataList(gpsDataList: GPSDataList): Result<Unit> = withContext(Dispatchers.IO) {
         return@withContext try {
-            val uniqueFileName = generateUniqueFileName()
-            val file = File(context.filesDir, uniqueFileName)
+            var uniqueFileName = gpsDataList.fileName
+            val file = File(context.filesDir, "gpsdata_$uniqueFileName.json")
 
             file.writeText(json.encodeToString(gpsDataList))
             Log.d("JsonStorage", "Saved GPS data to $uniqueFileName")
@@ -96,6 +91,26 @@ class JsonStorage(private val context: Context) {
             Log.e("JsonStorage", "Error loading GPS data", e)
             Result.failure(e)
         }
+    }
+
+    suspend fun loadSingleGPSDataFile(fileName: String): Result<GPSDataList> = withContext(Dispatchers.IO) {
+        return@withContext try {
+            val file = File(context.filesDir, "gpsdata_$fileName.json")
+            if (file.exists()) {
+                val content = file.readText()
+                val gpsDataList = json.decodeFromString<GPSDataList>(content)
+                Result.success(gpsDataList)
+            } else {
+                Result.failure(FileNotFoundException("File $fileName not found"))
+            }
+        } catch (e: Exception) {
+            Log.e("JsonStorage", "Error loading single GPS data file", e)
+            Result.failure(e)
+        }
+    }
+
+    fun getLogEntries(): Result<List<Map<String, String>>> {
+        return loadLogEntries()
     }
 
     suspend fun clearAllData() {
