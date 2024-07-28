@@ -6,14 +6,18 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import androidx.compose.runtime.remember
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.asFlow
 import androidx.lifecycle.viewModelScope
-import androidx.work.*
+import androidx.work.BackoffPolicy
+import androidx.work.CoroutineWorker
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.WorkRequest
+import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,8 +33,8 @@ import org.json.JSONObject
 import org.paulstudios.datasurvey.data.models.GPSData
 import org.paulstudios.datasurvey.data.models.GPSDataList
 import org.paulstudios.datasurvey.data.storage.JsonStorage
-import org.paulstudios.datasurvey.network.LocationService
 import org.paulstudios.datasurvey.data.storage.UserIdManager
+import org.paulstudios.datasurvey.network.LocationService
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
@@ -71,26 +75,37 @@ class GPSDataCollection(application: Application) : AndroidViewModel(application
 
             workManager.enqueue(uploadWorkRequest)
 
-            val workInfoLiveData = workManager.getWorkInfoByIdLiveData(uploadWorkRequest.id)
-            workInfoLiveData.asFlow().collect { workInfo ->
+            workManager.getWorkInfoByIdLiveData(uploadWorkRequest.id).asFlow().collect { workInfo ->
+                Log.d("GPSDataCollection", "WorkInfo state: ${workInfo.state}")
                 when (workInfo.state) {
                     WorkInfo.State.RUNNING -> {
                         val progress = workInfo.progress.getFloat("progress", 0f)
                         _uploadProgress.value = progress
+                        Log.d("GPSDataCollection", "Upload progress: $progress")
                     }
                     WorkInfo.State.SUCCEEDED -> {
                         val outputData = workInfo.outputData
                         if (outputData.getString("status") == "NO_DATA") {
                             _uploadStatus.value = UploadStatus.NoData
+                            Log.d("GPSDataCollection", "Upload status: No data")
                         } else {
                             _uploadStatus.value = UploadStatus.Success
+                            Log.d("GPSDataCollection", "Upload status: Success")
                             loadStoredData()
                         }
                         _uploadProgress.value = 1f
                     }
-                    WorkInfo.State.FAILED -> _uploadStatus.value = UploadStatus.Error
-                    WorkInfo.State.CANCELLED -> _uploadStatus.value = UploadStatus.Idle
-                    else -> {} // Do nothing for other states
+                    WorkInfo.State.FAILED -> {
+                        _uploadStatus.value = UploadStatus.Error
+                        Log.d("GPSDataCollection", "Upload status: Error")
+                    }
+                    WorkInfo.State.CANCELLED -> {
+                        _uploadStatus.value = UploadStatus.Idle
+                        Log.d("GPSDataCollection", "Upload status: Cancelled")
+                    }
+                    else -> {
+                        Log.d("GPSDataCollection", "Upload status: ${workInfo.state}")
+                    }
                 }
             }
         }
@@ -160,44 +175,60 @@ class DataUploadWorker(
     private val userIdManager = UserIdManager(context)
     private val okHttpClient = OkHttpClient()
 
-    override suspend fun doWork(): Result {
-        return try {
-            val logEntries = jsonStorage.getLogEntries().getOrThrow()
+    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        try {
+            val logEntries = jsonStorage.getLogEntries().getOrNull() ?: emptyList()
             if (logEntries.isEmpty()) {
                 Log.d("DataUploadWorker", "No data to upload")
-                return Result.success(workDataOf("status" to "NO_DATA"))
+                return@withContext Result.success(workDataOf("status" to "NO_DATA"))
             }
             Log.d("DataUploadWorker", "Uploading ${logEntries.size} files")
 
-            var uploadedFiles = 0
+            var uploadedBatches = 0
+            var totalBatches = 0
+
+            // Calculate total number of batches
             for (entry in logEntries) {
                 val fileName = entry["fileName"] ?: continue
-                val result = uploadSingleFile(fileName)
-                if (result) {
-                    uploadedFiles++
-                    val progress = uploadedFiles.toFloat() / logEntries.size
+                val gpsDataListResult = jsonStorage.loadSingleGPSDataFile(fileName)
+                if (gpsDataListResult.isSuccess) {
+                    val gpsDataList = gpsDataListResult.getOrThrow()
+                    totalBatches += (gpsDataList.data.size + 24) / 25 // Ceiling division by 25
+                }
+            }
+
+            var allUploadsSuccessful = true
+            for (entry in logEntries) {
+                val fileName = entry["fileName"] ?: continue
+                val result = uploadSingleFile(fileName) { batchesUploaded ->
+                    uploadedBatches += batchesUploaded
+                    val progress = uploadedBatches.toFloat() / totalBatches
                     setProgress(workDataOf("progress" to progress))
-                } else {
+                }
+                if (!result) {
+                    allUploadsSuccessful = false
                     break
                 }
             }
 
-            if (uploadedFiles == logEntries.size) {
+            if (allUploadsSuccessful) {
+                Log.d("DataUploadWorker", "All uploads successful. Clearing data.")
                 jsonStorage.clearAllData()
                 showNotification("Data Upload Successful", "All data has been uploaded successfully.")
-                Result.success()
+                return@withContext Result.success()
             } else {
-                showNotification("Data Upload Incomplete", "Some files couldn't be uploaded. The process will retry later.")
-                Result.retry()
+                Log.d("DataUploadWorker", "Some uploads failed. Retrying later.")
+                showNotification("Data Upload Incomplete", "Some batches couldn't be uploaded. The process will retry later.")
+                return@withContext Result.retry()
             }
         } catch (e: Exception) {
             Log.e("DataUploadWorker", "Error during upload", e)
             showNotification("Data Upload Failed", "There was an error uploading the data. Please try again later.")
-            Result.failure()
+            return@withContext Result.failure()
         }
     }
 
-    private suspend fun uploadSingleFile(fileName: String): Boolean {
+    private suspend fun uploadSingleFile(fileName: String, onBatchUploaded: suspend (Int) -> Unit): Boolean {
         val projectId = userIdManager.getProjectId() ?: run {
             Log.e("DataUploadWorker", "No project ID available")
             return false
@@ -210,21 +241,32 @@ class DataUploadWorker(
         }
         val uploadId = UUID.randomUUID().toString()
         val gpsDataList = gpsDataListResult.getOrThrow()
-        return uploadDataInBatches(listOf(gpsDataList), projectId, uploadId)
+        val result = uploadDataInBatches(listOf(gpsDataList), projectId, uploadId, onBatchUploaded)
+        Log.d("DataUploadWorker", "Upload result for file $fileName: $result")
+        return result
     }
 
-    private suspend fun uploadDataInBatches(allData: List<GPSDataList>, projectId: String, uploadId: String): Boolean {
+    private suspend fun uploadDataInBatches(
+        allData: List<GPSDataList>,
+        projectId: String,
+        uploadId: String,
+        onBatchUploaded: suspend (Int) -> Unit
+    ): Boolean {
         for (gpsDataList in allData) {
-            val batches = gpsDataList.data.chunked(100)
+            val batches = gpsDataList.data.chunked(25)
             Log.d("DataUploadWorker", "Uploading ${batches.size} batches for user ${gpsDataList.userId} with uploadId $uploadId")
             val filename = gpsDataList.fileName
-            for (batch in batches) {
+            for ((index, batch) in batches.withIndex()) {
                 val batchDataList = GPSDataList(gpsDataList.userId, batch, filename)
                 if (!uploadBatch(batchDataList, projectId, uploadId)) {
+                    Log.e("DataUploadWorker", "Failed to upload batch ${index + 1}/${batches.size} for user ${gpsDataList.userId}")
                     return false
                 }
+                onBatchUploaded(1)
+                Log.d("DataUploadWorker", "Uploaded batch ${index + 1}/${batches.size} for user ${gpsDataList.userId}")
             }
         }
+        Log.d("DataUploadWorker", "All batches uploaded successfully for uploadId $uploadId")
         return true
     }
 
@@ -239,14 +281,16 @@ class DataUploadWorker(
                 )
                 val request = createRequest(projectId, requestBody)
 
-                okHttpClient.newCall(request).execute().use { response ->
-                    if (response.isSuccessful) {
-                        Log.d("DataUploadWorker", "Batch uploaded successfully for user ${batchDataList.userId} with uploadId $uploadId")
-                        return true
-                    } else {
-                        Log.w("DataUploadWorker", "Upload failed with status code: ${response.code()} for uploadId $uploadId")
-                        Log.w("DataUploadWorker", "Response body: ${response.body()?.string()}")
-                    }
+                val response = withContext(Dispatchers.IO) {
+                    okHttpClient.newCall(request).execute()
+                }
+
+                if (response.isSuccessful) {
+                    Log.d("DataUploadWorker", "Batch uploaded successfully for user ${batchDataList.userId} with uploadId $uploadId")
+                    return true
+                } else {
+                    Log.w("DataUploadWorker", "Upload failed with status code: ${response.code()} for uploadId $uploadId")
+                    Log.w("DataUploadWorker", "Response body: ${response.body()?.string()}")
                 }
             } catch (e: Exception) {
                 Log.e("DataUploadWorker", "Error during upload for uploadId $uploadId", e)
