@@ -117,6 +117,8 @@ dependencies {
     implementation(libs.annotations.v2300)
 
     implementation(libs.kotlinx.serialization.json)
+
+    implementation(libs.androidx.material.icons.extended)
 }
 
 configurations {

@@ -9,8 +9,10 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.location.Location
+import android.location.LocationManager
 import android.os.IBinder
 import android.os.SystemClock
 import android.util.Log
@@ -43,11 +45,14 @@ class LocationService : Service() {
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var jsonStorage: JsonStorage
     private lateinit var userIdManager: UserIdManager
+    private lateinit var gpsStatusReceiver: GpsStatusReceiver
     private val gpsDataList = mutableListOf<GPSData>()
     private var collectionJob: Job? = null
     private lateinit var notificationManager: NotificationManager
     private val CHANNEL_ID = "LocationServiceChannel"
     private val NOTIFICATION_ID = 1
+    private val HIGH_PRIORITY_CHANNEL_ID = "HighPriorityChannel"
+    private val HIGH_PRIORITY_NOTIFICATION_ID = 2
     private var startTime: Long = 0
 
     override fun onCreate() {
@@ -56,10 +61,19 @@ class LocationService : Service() {
         jsonStorage = JsonStorage(applicationContext)
         userIdManager = UserIdManager(applicationContext)
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        createNotificationChannel()
         startTime = SystemClock.elapsedRealtime()
         startForegroundService()
         startDataCollection()
+        createNotificationChannel()
+        createHighPriorityNotificationChannel()
+        gpsStatusReceiver = GpsStatusReceiver()
+        gpsStatusReceiver.setListener { isGpsEnabled ->
+            if (!isGpsEnabled) {
+                handleGpsDisabled()
+            }
+        }
+        val filter = IntentFilter(LocationManager.PROVIDERS_CHANGED_ACTION)
+        registerReceiver(gpsStatusReceiver, filter)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -75,15 +89,34 @@ class LocationService : Service() {
         super.onDestroy()
         collectionJob?.cancel()
         saveData()
+        unregisterReceiver(gpsStatusReceiver)
+    }
+
+    private fun handleGpsDisabled() {
+        // Notify user and stop data collection
+        showHighPriorityNotification("GPS is disabled. Data collection has stopped.")
+        stopSelf()
     }
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
             "Location Service",
-            NotificationManager.IMPORTANCE_DEFAULT
+            NotificationManager.IMPORTANCE_LOW // Changed to low to avoid sounds
         ).apply {
             description = "Ongoing notification for location data collection"
+            setSound(null, null) // Disables the sound
+        }
+        notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun createHighPriorityNotificationChannel() {
+        val channel = NotificationChannel(
+            HIGH_PRIORITY_CHANNEL_ID,
+            "High Priority Notifications",
+            NotificationManager.IMPORTANCE_HIGH
+        ).apply {
+            description = "Notifications for urgent actions, such as GPS being disabled"
         }
         notificationManager.createNotificationChannel(channel)
     }
@@ -104,7 +137,22 @@ class LocationService : Service() {
             .setContentText(contentText)
             .setSmallIcon(R.drawable.baseline_share_location_24)
             .addAction(R.drawable.baseline_stop_circle_24, "Stop", stopPendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOnlyAlertOnce(true)
             .build()
+    }
+
+    private fun showHighPriorityNotification(contentText: String) {
+        val notification = NotificationCompat.Builder(this, HIGH_PRIORITY_CHANNEL_ID)
+            .setContentTitle("Action Required")
+            .setContentText(contentText)
+            .setSmallIcon(R.drawable.baseline_warning_24)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(HIGH_PRIORITY_NOTIFICATION_ID, notification)
     }
 
     private fun startDataCollection() {
@@ -119,13 +167,13 @@ class LocationService : Service() {
                         val formattedElapsedTime = formatElapsedTime(elapsedTime)
                         updateNotification("Last location: ${location.latitude}, ${location.longitude}. Running time: $formattedElapsedTime")
                     }
-                    delay(10000)
+                    delay(10)
                 } catch (e: SecurityException) {
                     Log.e("LocationService", "Location permission error", e)
                     stopSelf()
                 } catch (e: Exception) {
                     Log.e("LocationService", "Error collecting location data", e)
-                    delay(10000)
+                    delay(10)
                 }
             }
         }
@@ -154,7 +202,6 @@ class LocationService : Service() {
     @SuppressLint("MissingPermission")
     private suspend fun getLocation(): Location? {
         return try {
-            val cancellationTokenSource = CancellationTokenSource()
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.ACCESS_FINE_LOCATION
@@ -163,8 +210,10 @@ class LocationService : Service() {
                     Manifest.permission.ACCESS_COARSE_LOCATION
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
+                handleGpsDisabled()
                 null
             } else {
+                val cancellationTokenSource = CancellationTokenSource()
                 fusedLocationClient.getCurrentLocation(
                     Priority.PRIORITY_HIGH_ACCURACY,
                     cancellationTokenSource.token
@@ -189,3 +238,5 @@ private fun generateUniqueFileName(): String {
     val uniqueNumber = (1..15).map { random.nextInt(10) }.joinToString("")
     return uniqueNumber
 }
+
+

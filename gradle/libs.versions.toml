@@ -99,6 +99,7 @@ androidx-lifecycle-runtime-ktx-v240 = { module = "androidx.lifecycle:lifecycle-r
 androidx-lifecycle-runtime-ktx-v261 = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "androidxLifecycleRuntimeKtx" }
 androidx-lifecycle-viewmodel-compose = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
 androidx-lifecycle-viewmodel-compose-v261 = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelComposeVersion" }
+androidx-material-icons-extended = { module = "androidx.compose.material:material-icons-extended" }
 androidx-material3-v100 = { module = "androidx.compose.material3:material3", version.ref = "androidxMaterial3Version" }
 androidx-material3-v100alpha15 = { module = "androidx.compose.material3:material3", version.ref = "androidxMaterial3" }
 androidx-navigation-compose-v240alpha10 = { module = "androidx.navigation:navigation-compose", version.ref = "navigationComposeVersion" }

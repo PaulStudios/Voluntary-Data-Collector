@@ -1,9 +1,11 @@
 package org.paulstudios.datasurvey.ui.screens.collector
 
 import android.Manifest
+import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -50,6 +52,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
@@ -61,7 +65,8 @@ import org.paulstudios.datasurvey.viewmodels.UploadStatus
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel(), serverStatusViewModel: ServerStatusViewModel, navController: NavHostController) {
+fun DataCollectionScreen(serverStatusViewModel: ServerStatusViewModel, navController: NavHostController) {
+    val viewModel = rememberGPSDataCollectionViewModel(serverStatusViewModel)
     val serverStatus by serverStatusViewModel.serverStatus.collectAsState()
     val context = LocalContext.current
     var showPermissionDialog by remember { mutableStateOf(false) }
@@ -103,6 +108,8 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel(), serverStatu
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showExitConfirmationDialog by remember { mutableStateOf(false) }
+
+    var showEnableGpsDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(key1 = true) {
         if (storedData.isNotEmpty()) {
@@ -152,7 +159,11 @@ fun DataCollectionScreen(viewModel: GPSDataCollection = viewModel(), serverStatu
                     if (!arePermissionsGranted(context, requiredPermissions)) {
                         requestPermissions(permissionLauncher, requiredPermissions)
                     } else {
-                        viewModel.startDataCollection(context)
+                        if (!isGpsEnabled(context)) {
+                            showEnableGpsDialog = true
+                        } else {
+                            viewModel.startDataCollection(context)
+                        }
                     }
                 }) {
                     Text("Start Data Collection")
@@ -274,7 +285,17 @@ if (showPermissionDialog) {
         }
     )
 }
-
+    if (showEnableGpsDialog) {
+        EnableGpsDialog(
+            onConfirm = {
+                context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                showEnableGpsDialog = false
+            },
+            onDismiss = {
+                showEnableGpsDialog = false
+            }
+        )
+    }
     LaunchedEffect(uploadStatus) {
         when (uploadStatus) {
             is UploadStatus.Success -> {
@@ -341,4 +362,49 @@ private fun openAppSettings(context: Context) {
         data = Uri.fromParts("package", context.packageName, null)
     }
     context.startActivity(intent)
+}
+
+@Composable
+fun rememberGPSDataCollectionViewModel(serverStatusViewModel: ServerStatusViewModel): GPSDataCollection {
+    val context = LocalContext.current
+    return viewModel(
+        factory = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                return GPSDataCollection(
+                    application = context.applicationContext as Application,
+                    serverStatusViewModel = serverStatusViewModel
+                ) as T
+            }
+        }
+    )
+}
+
+// Function to check if GPS is enabled
+fun isGpsEnabled(context: Context): Boolean {
+    val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+}
+
+// Function to prompt the user to enable GPS
+@Composable
+fun EnableGpsDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Enable GPS") },
+        text = { Text("GPS is not enabled. Do you want to go to settings menu?") },
+        confirmButton = {
+            Button(onClick = onConfirm) {
+                Text("Yes")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("No")
+            }
+        }
+    )
 }

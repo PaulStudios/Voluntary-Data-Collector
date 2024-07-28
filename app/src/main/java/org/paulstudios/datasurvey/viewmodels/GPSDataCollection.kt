@@ -20,7 +20,9 @@ import androidx.work.WorkerParameters
 import androidx.work.workDataOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,7 +41,9 @@ import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
 
-class GPSDataCollection(application: Application) : AndroidViewModel(application) {
+class GPSDataCollection(application: Application,
+                        private val serverStatusViewModel: ServerStatusViewModel
+) : AndroidViewModel(application) {
     private val _status = MutableStateFlow("Idle")
     val status: StateFlow<String> get() = _status
 
@@ -60,8 +64,27 @@ class GPSDataCollection(application: Application) : AndroidViewModel(application
     private val _uploadProgress = MutableStateFlow(0f)
     val uploadProgress: StateFlow<Float> = _uploadProgress
 
+    private val _connectionStatus = MutableStateFlow<ConnectionStatus>(ConnectionStatus.Unknown)
+    val connectionStatus: StateFlow<ConnectionStatus> = _connectionStatus
+
+    private val _statusMessage = MutableSharedFlow<String>()
+    val statusMessage: SharedFlow<String> = _statusMessage
+
+    init {
+        viewModelScope.launch {
+            serverStatusViewModel.serverStatus.collect { isOnline ->
+                _connectionStatus.value = if (isOnline) ConnectionStatus.Online else ConnectionStatus.Offline
+            }
+        }
+    }
+
     fun uploadData() {
         viewModelScope.launch {
+            if (_connectionStatus.value != ConnectionStatus.Online) {
+                _statusMessage.emit("No internet connection. Please check your network and try again.")
+                return@launch
+            }
+
             _uploadStatus.value = UploadStatus.Uploading
             _uploadProgress.value = 0f
 
@@ -71,6 +94,7 @@ class GPSDataCollection(application: Application) : AndroidViewModel(application
                     WorkRequest.MIN_BACKOFF_MILLIS,
                     TimeUnit.MILLISECONDS
                 )
+                .setInputData(workDataOf("serverStatusViewModelId" to serverStatusViewModel.hashCode()))
                 .build()
 
             workManager.enqueue(uploadWorkRequest)
@@ -363,4 +387,8 @@ sealed class UploadStatus {
     object Success : UploadStatus()
     object Error : UploadStatus()
     object NoData : UploadStatus()
+}
+
+enum class ConnectionStatus {
+    Unknown, Online, Offline
 }
