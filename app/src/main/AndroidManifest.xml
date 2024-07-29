@@ -20,7 +20,7 @@
         android:theme="@style/Theme.VoluntaryDataCollector"
         tools:targetApi="31">
         <service
-            android:name=".network.LocationService"
+            android:name=".utils.LocationService"
             android:foregroundServiceType="location"
             android:exported="false" />
         <activity
@@ -34,7 +34,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <receiver android:name=".network.GpsStatusReceiver" android:exported="true">
+        <receiver android:name=".utils.GpsStatusReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.location.PROVIDERS_CHANGED" />
             </intent-filter>

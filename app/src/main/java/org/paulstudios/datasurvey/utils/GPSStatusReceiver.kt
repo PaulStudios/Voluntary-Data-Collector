@@ -1,4 +1,4 @@
-package org.paulstudios.datasurvey.network
+package org.paulstudios.datasurvey.utils
 
 import android.content.BroadcastReceiver
 import android.content.Context

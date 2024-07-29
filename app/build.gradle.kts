@@ -18,7 +18,7 @@ android {
         applicationId = "org.paulstudios.datasurvey"
         minSdk = 29
         targetSdk = 34
-        versionCode = 19
+        versionCode = 20
         versionName = "0.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -55,7 +55,20 @@ android {
 
     packaging {
         resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += listOf(
+                "META-INF/LICENSE-LGPL-3.txt",
+                "META-INF/LICENSE-LGPL-2.1.txt",
+                "META-INF/LICENSE-W3C-TEST",
+                "META-INF/DEPENDENCIES",
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/license.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/notice.txt",
+                "META-INF/ASL2.0",
+                "/META-INF/{AL2.0,LGPL2.1}"
+            )
         }
     }
 }
@@ -118,6 +131,11 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
 
+    implementation(libs.flexmark.all)
+
+    implementation(libs.core)
+    implementation(libs.ext.strikethrough)
+    implementation(libs.ext.tables)
 }
 
 configurations {

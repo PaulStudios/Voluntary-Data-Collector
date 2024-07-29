@@ -16,12 +16,16 @@ annotationsVersion = "23.0.0"
 appcompatVersion = "1.6.1"
 composeBomVersion = "2023.01.00"
 converterGson = "2.9.0"
+core = "4.6.2"
 coreKtxVersion = "1.10.1"
 datastoreCore = "1.1.1"
 datastorePreferences = "1.1.1"
+extStrikethrough = "4.6.2"
+extTables = "4.6.2"
 firebaseAnalyticsKtx = "22.0.2"
 firebaseAuthKtx = "23.0.0"
 firebaseBom = "33.1.1"
+flexmarkAll = "0.62.2"
 googlePlayServicesLocation = "18.0.0"
 gradle = "4.0.2"
 jetbrainsKotlinxCoroutinesAndroid = "1.7.2"
@@ -42,6 +46,7 @@ appcompat = "1.7.0"
 lifecycleRuntimeKtxVersion = "2.4.0"
 lifecycleViewmodelCompose = "2.8.3"
 lifecycleViewmodelComposeVersion = "2.6.1"
+markdownview = "1.1.0"
 material = "1.12.0"
 activity = "1.9.0"
 constraintlayout = "2.1.4"
@@ -121,12 +126,16 @@ androidx-work-runtime-ktx-v281 = { module = "androidx.work:work-runtime-ktx", ve
 annotations = { module = "org.jetbrains:annotations", version.ref = "annotations" }
 annotations-v2300 = { module = "org.jetbrains:annotations", version.ref = "annotationsVersion" }
 converter-gson = { module = "com.squareup.retrofit2:converter-gson", version.ref = "converterGson" }
+core = { module = "io.noties.markwon:core", version.ref = "core" }
+ext-strikethrough = { module = "io.noties.markwon:ext-strikethrough", version.ref = "extStrikethrough" }
+ext-tables = { module = "io.noties.markwon:ext-tables", version.ref = "extTables" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 firebase-analytics-ktx = { module = "com.google.firebase:firebase-analytics-ktx", version.ref = "firebaseAnalyticsKtx" }
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-auth-ktx = { module = "com.google.firebase:firebase-auth-ktx", version.ref = "firebaseAuthKtx" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-perf = { module = "com.google.firebase:firebase-perf" }
+flexmark-all = { module = "com.vladsch.flexmark:flexmark-all", version.ref = "flexmarkAll" }
 google-firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
 gradle = { module = "com.android.tools.build:gradle", version.ref = "gradle" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
@@ -149,6 +158,7 @@ kotlinx-coroutines-android-v172 = { module = "org.jetbrains.kotlinx:kotlinx-coro
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinxCoroutinesPlayServices" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 kotlinx-serialization-json-v130 = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJsonVersion" }
+markdownview = { module = "us.feras.mdv:markdownview", version.ref = "markdownview" }
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }

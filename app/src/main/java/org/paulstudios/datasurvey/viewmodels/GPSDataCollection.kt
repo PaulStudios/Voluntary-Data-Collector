@@ -40,7 +40,7 @@ import org.paulstudios.datasurvey.data.models.GPSData
 import org.paulstudios.datasurvey.data.models.GPSDataList
 import org.paulstudios.datasurvey.data.storage.JsonStorage
 import org.paulstudios.datasurvey.data.storage.UserIdManager
-import org.paulstudios.datasurvey.network.LocationService
+import org.paulstudios.datasurvey.utils.LocationService
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.absoluteValue
