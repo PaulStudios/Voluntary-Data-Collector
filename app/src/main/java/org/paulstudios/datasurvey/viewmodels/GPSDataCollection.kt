@@ -149,6 +149,7 @@ class GPSDataCollection(application: Application,
         viewModelScope.launch {
             if (_connectionStatus.value != ConnectionStatus.Online) {
                 _statusMessage.emit("No internet connection. Please check your network and try again.")
+                Log.d("GPSData", "No internet connection. Please check your network and try again.")
                 return@launch
             }
 
