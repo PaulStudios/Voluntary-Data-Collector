@@ -2,17 +2,15 @@ import json
 import logging
 import random
 import uuid
-from datetime import datetime
-from typing import Optional
-
 from asyncpg import ForeignKeyViolationError
-from fastapi import APIRouter, Depends, HTTPException, Form, Request, Body
-from fastapi.responses import HTMLResponse
-from sqlalchemy.orm import Session
-from fastapi.templating import Jinja2Templates
 from database import database, get_db
-from models import Project, User, UserData
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, Form, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from models import Project, User
 from schemas import ProjectBase, UserData as UserDataSchema
+from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/project", tags=["Project"])
 templates = Jinja2Templates(directory="templates")
@@ -123,11 +121,9 @@ async def upload_user_data(
         db: Session = Depends(get_db)
 ):
     try:
-        # Parse the user_data JSON string
         user_data_dict = json.loads(user_data)
         validated_user_data = UserDataSchema(**user_data_dict)
 
-        # Your existing logic here
         user = db.query(User).filter(User.id == user_id).first()
         if not user:
             user = User(id=user_id)
@@ -170,3 +166,17 @@ async def get_project_data(project_id: int):
         raise HTTPException(status_code=404, detail="Invalid project ID")
     logger.info(f"Data retrieved for project {project_id}")
     return data[0]
+
+
+@router.delete("/{project_id}/delete_data", summary="Delete all data for a project")
+async def delete_project_data(project_id: int):
+    return HTTPException(status_code=403, detail="This feature has been disabled")
+    query = "DELETE FROM user_data WHERE project_id = :project_id"
+    values = {"project_id": project_id}
+    try:
+        await database.execute(query=query, values=values)
+        logger.info(f"All data deleted for project {project_id}")
+        return {"message": f"All data deleted successfully for project {project_id}"}
+    except Exception as e:
+        logger.error(f"Error deleting data for project {project_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error deleting project data")
