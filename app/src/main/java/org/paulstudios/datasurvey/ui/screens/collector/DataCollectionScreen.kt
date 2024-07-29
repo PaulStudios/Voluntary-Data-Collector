@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
@@ -15,15 +16,20 @@ import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.AlertDialog
@@ -45,16 +51,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.launch
 import org.paulstudios.datasurvey.data.models.Screen
@@ -66,9 +72,11 @@ import org.paulstudios.datasurvey.viewmodels.UploadStatus
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DataCollectionScreen(serverStatusViewModel: ServerStatusViewModel, navController: NavHostController) {
-    val viewModel = rememberGPSDataCollectionViewModel(serverStatusViewModel)
     val serverStatus by serverStatusViewModel.serverStatus.collectAsState()
     val context = LocalContext.current
+    val viewModel = rememberSaveable(saver = GPSDataCollectionSaver(context, serverStatusViewModel)) {
+        GPSDataCollection(context.applicationContext as Application, serverStatusViewModel)
+    }
     var showPermissionDialog by remember { mutableStateOf(false) }
     var permissionDialogType by remember { mutableStateOf<PermissionDialogType>(PermissionDialogType.Initial) }
     var isLoading by remember { mutableStateOf(false) }
@@ -367,18 +375,27 @@ private fun openAppSettings(context: Context) {
 @Composable
 fun rememberGPSDataCollectionViewModel(serverStatusViewModel: ServerStatusViewModel): GPSDataCollection {
     val context = LocalContext.current
-    return viewModel(
-        factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return GPSDataCollection(
-                    application = context.applicationContext as Application,
-                    serverStatusViewModel = serverStatusViewModel
-                ) as T
-            }
-        }
-    )
+    return rememberSaveable(saver = GPSDataCollectionSaver(context, serverStatusViewModel)) {
+        GPSDataCollection(context.applicationContext as Application, serverStatusViewModel)
+    }
 }
+
+@Composable
+fun GPSDataCollectionSaver(context: Context, serverStatusViewModel: ServerStatusViewModel) = Saver<GPSDataCollection, Bundle>(
+    save = { viewModel ->
+        Bundle().apply {
+            putString("status", viewModel.status.value)
+            // Add other necessary state to save
+        }
+    },
+    restore = { bundle ->
+        GPSDataCollection(context.applicationContext as Application, serverStatusViewModel).apply {
+            // Restore the saved state
+            _status.value = bundle.getString("status", "Idle")
+            // Restore other necessary state
+        }
+    }
+)
 
 // Function to check if GPS is enabled
 fun isGpsEnabled(context: Context): Boolean {
@@ -406,5 +423,21 @@ fun EnableGpsDialog(
                 Text("No")
             }
         }
+    )
+}
+
+@Composable
+fun ServerStatusIndicator(
+    isOnline: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(24.dp)
+            .background(
+                color = if (isOnline) Color.Green else Color.Red,
+                shape = CircleShape
+            )
+            .clickable { onClick() }
     )
 }

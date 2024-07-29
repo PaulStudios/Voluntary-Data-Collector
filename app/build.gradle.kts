@@ -18,8 +18,8 @@ android {
         applicationId = "org.paulstudios.datasurvey"
         minSdk = 29
         targetSdk = 34
-        versionCode = 16
-        versionName = "0.7.9"
+        versionCode = 18
+        versionName = "0.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -118,7 +118,6 @@ dependencies {
 
     implementation(libs.kotlinx.serialization.json)
 
-    implementation(libs.androidx.material.icons.extended)
 }
 
 configurations {

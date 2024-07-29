@@ -1,15 +1,19 @@
 package org.paulstudios.datasurvey.viewmodels
 
+import android.annotation.SuppressLint
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.asFlow
 import androidx.lifecycle.viewModelScope
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.work.BackoffPolicy
 import androidx.work.CoroutineWorker
 import androidx.work.OneTimeWorkRequestBuilder
@@ -44,7 +48,7 @@ import kotlin.math.absoluteValue
 class GPSDataCollection(application: Application,
                         private val serverStatusViewModel: ServerStatusViewModel
 ) : AndroidViewModel(application) {
-    private val _status = MutableStateFlow("Idle")
+    val _status = MutableStateFlow("Idle")
     val status: StateFlow<String> get() = _status
 
     private val _error = MutableStateFlow<String?>(null)
@@ -76,6 +80,69 @@ class GPSDataCollection(application: Application,
                 _connectionStatus.value = if (isOnline) ConnectionStatus.Online else ConnectionStatus.Offline
             }
         }
+    }
+
+    init {
+        checkServiceStatus()
+    }
+
+    init {
+        Log.d("GPSDataCollection", "ViewModel initialized")
+        registerReceivers(application)
+    }
+
+    private fun checkServiceStatus() {
+        viewModelScope.launch {
+            val isServiceRunning = isLocationServiceRunning()
+            _status.value = if (isServiceRunning) "Collecting Data..." else "Idle"
+        }
+    }
+
+    private fun isLocationServiceRunning(): Boolean {
+        return getApplication<Application>().getSharedPreferences("LocationService", Context.MODE_PRIVATE)
+            .getBoolean(LocationService.PREF_SERVICE_RUNNING, false)
+    }
+
+    private var serviceStopReceiver: BroadcastReceiver? = null
+
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private fun registerReceivers(context: Context) {
+        Log.d("GPSDataCollection", "Registering receivers")
+        val filter = IntentFilter().apply {
+            addAction("org.paulstudios.datasurvey.ACTION_LOCATION_SERVICE_STOPPED")
+            addAction("org.paulstudios.datasurvey.ACTION_GPS_DISABLED")
+        }
+
+        serviceStopReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                Log.d("GPSDataCollection", "Broadcast received: ${intent?.action}")
+                when (intent?.action) {
+                    "org.paulstudios.datasurvey.ACTION_LOCATION_SERVICE_STOPPED",
+                    "org.paulstudios.datasurvey.ACTION_GPS_DISABLED" -> {
+                        Log.d("GPSDataCollection", "Updating status to Idle")
+                        _status.value = "Idle"
+                        // Add any additional handling for GPS disabled state
+                    }
+                }
+            }
+        }
+
+        LocalBroadcastManager.getInstance(context).registerReceiver(serviceStopReceiver!!, filter)
+        Log.d("GPSDataCollection", "Receivers registered")
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        Log.d("GPSDataCollection", "ViewModel cleared")
+        unregisterReceivers(getApplication())
+    }
+
+    private fun unregisterReceivers(context: Context) {
+        serviceStopReceiver?.let {
+            LocalBroadcastManager.getInstance(context).unregisterReceiver(it)
+            serviceStopReceiver = null
+        }
+        Log.d("GPSDataCollection", "Receivers unregistered")
     }
 
     fun uploadData() {

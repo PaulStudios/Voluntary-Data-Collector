@@ -55,6 +55,10 @@ class LocationService : Service() {
     private val HIGH_PRIORITY_NOTIFICATION_ID = 2
     private var startTime: Long = 0
 
+    companion object {
+        const val PREF_SERVICE_RUNNING = "service_running"
+    }
+
     override fun onCreate() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -79,6 +83,12 @@ class LocationService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             "STOP_SERVICE" -> stopSelf()
+            else -> {
+                getSharedPreferences("LocationService", Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean(PREF_SERVICE_RUNNING, true)
+                    .apply()
+            }
         }
         return START_STICKY
     }
@@ -90,11 +100,23 @@ class LocationService : Service() {
         collectionJob?.cancel()
         saveData()
         unregisterReceiver(gpsStatusReceiver)
+        getSharedPreferences("LocationService", Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(PREF_SERVICE_RUNNING, false)
+            .apply()
+
+        Log.d("LocationService", "Service destroyed, sending broadcast")
+        val intent = Intent("org.paulstudios.datasurvey.ACTION_LOCATION_SERVICE_STOPPED")
+        sendBroadcast(intent)
+        Log.d("LocationService", "Broadcast sent: ${intent.action}")
     }
 
     private fun handleGpsDisabled() {
-        // Notify user and stop data collection
+        Log.d("LocationService", "GPS disabled, sending broadcast")
         showHighPriorityNotification("GPS is disabled. Data collection has stopped.")
+        val intent = Intent("org.paulstudios.datasurvey.ACTION_GPS_DISABLED")
+        sendBroadcast(intent)
+        Log.d("LocationService", "Broadcast sent: ${intent.action}")
         stopSelf()
     }
 
@@ -167,13 +189,13 @@ class LocationService : Service() {
                         val formattedElapsedTime = formatElapsedTime(elapsedTime)
                         updateNotification("Last location: ${location.latitude}, ${location.longitude}. Running time: $formattedElapsedTime")
                     }
-                    delay(10)
+                    delay(10000)
                 } catch (e: SecurityException) {
                     Log.e("LocationService", "Location permission error", e)
                     stopSelf()
                 } catch (e: Exception) {
                     Log.e("LocationService", "Error collecting location data", e)
-                    delay(10)
+                    delay(10000)
                 }
             }
         }
