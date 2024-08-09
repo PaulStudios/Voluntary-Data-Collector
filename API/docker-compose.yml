@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  fastapi:
+    image: hilfing/voluntary-data-collector:latest
+    ports:
+      - "8000:8000"
+    restart: unless-stopped  # Restart policy for the service
+    depends_on:
+      - ngrok
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    environment:
+      - NGROK_AUTHTOKEN=2galn8gZQzta2tjAwYBNbJzahpU_6RUoBTDMQe6xUeFENKxVz
+    command: http --domain=glowworm-known-raven.ngrok-free.app 8000 --log=stdout
+    network_mode: host
+    stdin_open: true
+    tty: true
