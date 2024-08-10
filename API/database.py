@@ -14,6 +14,7 @@ database = Database(DATABASE_URL)
 
 Base = declarative_base()
 
+
 def get_db():
     db = SessionLocal()
     try:

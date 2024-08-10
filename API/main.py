@@ -37,8 +37,11 @@ async def shutdown():
 
 @app.middleware("http")
 async def log_requests(request, call_next):
+    if request.url.path == "/status":
+        logging.getLogger("uvicorn.access").disabled = True
     logger.info(f"Request: {request.method} {request.url}")
     response = await call_next(request)
+    logging.getLogger("uvicorn.access").disabled = False
     logger.info(f"Response status: {response.status_code}")
     return response
 
