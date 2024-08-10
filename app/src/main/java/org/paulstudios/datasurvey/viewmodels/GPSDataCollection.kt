@@ -422,7 +422,7 @@ class DataUploadWorker(
 
     private fun createRequest(projectId: String, requestBody: RequestBody): Request {
         return Request.Builder()
-            .url("https://glowworm-known-raven.ngrok-free.app/project/$projectId/user_data")
+            .url("https://voluntary-data-collector.onrender.com/project/$projectId/user_data")
             .post(requestBody)
             .build()
     }

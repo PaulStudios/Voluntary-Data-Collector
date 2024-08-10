@@ -12,7 +12,6 @@ import java.io.FileNotFoundException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.Random
 
 class JsonStorage(private val context: Context) {
     private val json = Json { prettyPrint = true }

@@ -1,10 +1,8 @@
 package org.paulstudios.datasurvey.network
 
 import okhttp3.RequestBody
-import org.paulstudios.datasurvey.data.models.GPSDataList
 import org.paulstudios.datasurvey.data.models.Project
 import retrofit2.Response
-import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST

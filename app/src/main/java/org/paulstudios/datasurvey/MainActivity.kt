@@ -3,6 +3,7 @@ package org.paulstudios.datasurvey
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,12 +19,15 @@ import com.google.android.gms.common.api.ApiException
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.OAuthProvider
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.launch
 import org.paulstudios.datasurvey.data.models.Screen
 import org.paulstudios.datasurvey.ui.theme.DataSurveyTheme
 import org.paulstudios.datasurvey.viewmodels.AuthState
 import org.paulstudios.datasurvey.viewmodels.AuthViewModel
 import org.paulstudios.datasurvey.viewmodels.ServerStatusViewModel
+
+private const val TAG = "MainActivity"
 
 class MainActivity : ComponentActivity() {
     private lateinit var navController: NavHostController
@@ -47,6 +51,16 @@ class MainActivity : ComponentActivity() {
             }
         }
         lifecycle.addObserver(serverStatusViewModel)
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
+                Log.w(TAG, "Fetching FCM registration token failed", task.exception)
+                return@addOnCompleteListener
+            }
+            // Get new FCM registration token
+            val token = task.result
+            Log.d(TAG, "FCM Token: $token")
+            // Send token to your backend if needed
+        }
         observeAuthState()
     }
 

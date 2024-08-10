@@ -4,7 +4,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitInstance {
-    private const val BASE_URL = "https://glowworm-known-raven.ngrok-free.app/"
+    private const val BASE_URL = "https://voluntary-data-collector.onrender.com/"
 
     val api: TrackerAPI by lazy {
         Retrofit.Builder()
